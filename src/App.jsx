@@ -512,6 +512,12 @@ export default function App() {
               ...(prev.deletedExpenseIds || []),
               ...(serverData.deletedExpenseIds || [])
             ].map(x => String(x).toLowerCase().trim()));
+            const deletedAssetIds = new Set([
+              ...(prev.deletedAssetIds || []),
+              ...(prev.deletedFixedAssetIds || []),
+              ...(serverData.deletedAssetIds || []),
+              ...(serverData.deletedFixedAssetIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
 
             const isMasterItemDeleted = (item, deletedIds) => {
               if (!item) return true;
@@ -686,7 +692,7 @@ export default function App() {
             const mergedUnits       = mergeMasterArray(prev.units,         serverData.units,         deletedUnitIds);
             const mergedTables      = mergeMasterArray(prev.tables,        serverData.tables,        deletedTableIds);
             const mergedExpenseMaster = mergeMasterArray(prev.expenseMaster, serverData.expenseMaster, deletedExpenseIds);
-            const mergedFixedAssets = mergeMasterArray(prev.fixedAssets || prev.assets || [], serverData.fixedAssets || serverData.assets || [], []);
+            const mergedFixedAssets = mergeMasterArray(prev.fixedAssets || prev.assets || [], serverData.fixedAssets || serverData.assets || [], deletedAssetIds);
 
             const prevStr = JSON.stringify(prev);
             const serverStr = JSON.stringify(serverData);

@@ -774,22 +774,31 @@ const getMasterDataFromMySQL = async () => {
     // langsung tersimpan di tabel ini. Blob (JSON) adalah cache yang bisa out-of-sync.
     // Strategi: selalu union antara blob + MySQL. MySQL menambah yang tidak ada di blob.
     try {
+      const deletedSalesSet = new Set([
+        ...(masterData.deletedSalesIds || []).map(x => String(x)),
+        ...(masterData.deletedLogisticsIds || []).map(x => String(x)),
+        ...(masterData.deletedReportIds || []).map(x => String(x))
+      ]);
+
       const [salesRows] = await mysqlPool.execute('SELECT * FROM sales_transactions ORDER BY date DESC, time DESC');
       if (Array.isArray(salesRows) && salesRows.length > 0) {
         const txMap = new Map();
         // Seed dengan data blob terlebih dahulu (blob punya detail lebih lengkap: items, dll)
         (masterData.salesTransactions || []).forEach(t => {
           const k = String(t.id || t.receipt_no || t.receiptNo || '');
-          if (k) txMap.set(k, t);
+          const rNo = String(t.receipt_no || t.receiptNo || '');
+          if (k && !deletedSalesSet.has(k) && (!rNo || !deletedSalesSet.has(rNo))) txMap.set(k, t);
         });
         (masterData.transactions || []).forEach(t => {
           const k = String(t.id || t.receipt_no || t.receiptNo || '');
-          if (k && !txMap.has(k)) txMap.set(k, t);
+          const rNo = String(t.receipt_no || t.receiptNo || '');
+          if (k && !txMap.has(k) && !deletedSalesSet.has(k) && (!rNo || !deletedSalesSet.has(rNo))) txMap.set(k, t);
         });
 
         salesRows.forEach(r => {
           const k = String(r.id || r.receipt_no || '');
-          if (!k) return;
+          const rNo = String(r.receipt_no || '');
+          if (!k || deletedSalesSet.has(k) || (rNo && deletedSalesSet.has(rNo))) return;
 
           // Parse items_json dari tabel MySQL sales_transactions
           let resolvedItems = [];
@@ -4071,6 +4080,14 @@ app.post('/api/master-data/delete-item', async (req, res) => {
           } else {
             await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\` WHERE id = ?`, [idStr]);
           }
+        } else if (key === 'salesTransactions' || key === 'transactions') {
+          const targetReceipt = String(req.body.receipt_no || req.body.receiptNo || req.body.invoice_no || '').trim();
+          try {
+            await mysqlPool.execute('DELETE FROM `sales_transactions` WHERE id = ? OR receipt_no = ?', [idStr, targetReceipt || idStr]);
+            await mysqlPool.execute('DELETE FROM `stock_movement` WHERE ref_id = ? OR transaction_id = ? OR receipt_no = ?', [idStr, targetReceipt || idStr, targetReceipt || idStr]).catch(() => {});
+          } catch (dErr) {
+            console.error('Delete sales_transactions sql error:', dErr.message);
+          }
         } else {
           const relTable = key === 'products' || key === 'menuItems' ? 'products' :
                            key === 'categories' || key === 'ingredientCategories' ? 'categories' :
@@ -4079,8 +4096,7 @@ app.post('/api/master-data/delete-item', async (req, res) => {
                            key === 'fixedAssets' || key === 'assets' ? 'fixed_assets' :
                            key === 'suppliers' ? 'suppliers' :
                            key === 'customers' ? 'customers' :
-                           key === 'units' ? 'units' :
-                           key === 'salesTransactions' || key === 'transactions' ? 'sales_transactions' : null;
+                           key === 'units' ? 'units' : null;
           if (relTable) {
             const targetName = String(req.body.name || '').trim();
             const targetCode = String(req.body.code || req.body.sku || '').trim();
@@ -4098,9 +4114,22 @@ app.post('/api/master-data/delete-item', async (req, res) => {
     await saveMasterDataToMySQL(existing);
     await syncToMySQL(existing);
 
+    // Broadcast SSE DATA_DELETED event ke semua POS Kasir & Web Admin yang sedang live
+    try {
+      broadcastPosEvent('DATA_DELETED', {
+        key,
+        id: idStr,
+        receipt_no: targetRcpt,
+        code: String(req.body.code || req.body.sku || ''),
+        name: String(req.body.name || ''),
+        username: targetUsername,
+        timestamp: nowTs
+      });
+    } catch (sseErr) {}
+
     res.json({
       success: true,
-      message: `Item ID ${id} dari ${key} berhasil dihapus permanen`,
+      message: `Item ID ${id} dari ${key} berhasil dihapus permanen dari Web Admin, POS Kasir, dan Database MySQL`,
       masterData: existing,
       _lastUpdated: nowTs
     });

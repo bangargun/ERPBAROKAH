@@ -29,6 +29,7 @@ import {
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
 import ManualReportUpdateModal from './ManualReportUpdateModal';
+import { executePermanentDelete } from '../../utils/deleteGuard';
 
 export default function ManualReportUpdatePage({ 
   masterData, 
@@ -534,49 +535,24 @@ export default function ManualReportUpdatePage({
 
     const updatedMovements = [...restorationMovements, ...(masterData?.stockMovement || [])];
 
-    // 4. TRIGGER DIRECT SERVER DELETE API CALLS
-    try {
-      fetch('/api/master-data/delete-item', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'salesTransactions', id: targetId, report_no: targetReportNo })
-      }).catch(() => {});
-
-      fetch('/api/master-data/delete-item', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'approvedFinanceDaily', id: targetId, report_no: targetReportNo })
-      }).catch(() => {});
-
-      if (targetReportNo && targetReportNo !== targetId) {
-        fetch('/api/master-data/delete-item', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: 'salesTransactions', id: targetReportNo, report_no: targetReportNo })
-        }).catch(() => {});
-      }
-    } catch (e) {}
-
-    // 5. UPDATE LOCAL & SERVER MASTER DATA WITH LASTUPDATED TIMESTAMP
-    setMasterData(prev => {
-      const ts = Date.now();
-      return {
-        ...prev,
-        _lastUpdated: ts,
-        deletedLogisticsIds: updatedDelLog,
-        deletedReportIds: updatedDelRep,
-        ingredients: updatedIngredients,
-        stockMovement: updatedMovements,
-        manualEntryRecords: updatedManualRecords,
-        approvedFinanceDaily: updatedApprovedDaily,
-        shiftReports: updatedShiftReports,
-        dailyReports: updatedDailyReports,
-        manualReports: updatedManualReports,
-        financialRecords: updatedFinRecords,
-        salesTransactions: updatedSalesTx,
-        outletTransactions: updatedOutletTx
-      };
+    // 4. TRIGGER DIRECT SERVER DELETE API CALLS & TOMBSTONE SYNC
+    executePermanentDelete({
+      key: 'approvedFinanceDaily',
+      id: targetId,
+      receipt_no: targetReportNo,
+      masterData,
+      setMasterData
     });
+
+    if (targetReportNo && targetReportNo !== targetId) {
+      executePermanentDelete({
+        key: 'salesTransactions',
+        id: targetReportNo,
+        receipt_no: targetReportNo,
+        masterData,
+        setMasterData
+      });
+    }
 
     alert(`BERHASIL MENGHAPUS LAPORAN PERMANEN!\n\n• Laporan/Tanggal: ${targetReportNo || targetDate || targetId}\n• Rekomposisi Stok: ${restorationMovements.length} bahan baku dikembalikan.\n• Laporan telah dihapus permanen dari server & lokal!`);
 

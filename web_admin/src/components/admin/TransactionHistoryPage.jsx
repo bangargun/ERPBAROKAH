@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
+import { executePermanentDelete } from '../../utils/deleteGuard';
 
 export default function TransactionHistoryPage({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
   const outlets = masterData?.outlets || [];
@@ -606,78 +607,21 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     }
   };
 
+  // ─── HAPUS TRANSAKSI ───────────────────────────────────────────────────────
   const handleDeleteTransaction = async (target) => {
     if (!target) return;
     const targetObj = typeof target === 'object' ? target : null;
     const targetId = targetObj ? String(targetObj.id || targetObj.receipt_no || targetObj.receiptNo || targetObj.invoice_no || '') : String(target);
-    const targetReceiptNo = targetObj ? (targetObj.receipt_no || targetObj.receiptNo || targetObj.invoice_no || null) : null;
+    const targetReceiptNo = targetObj ? (targetObj.receipt_no || targetObj.receiptNo || targetObj.invoice_no || targetId) : targetId;
 
-    const allTx = [...(masterData?.salesTransactions || []), ...(masterData?.transactions || [])];
-    const targetTx = targetObj || allTx.find(t => 
-      String(t.id) === targetId || String(t.receipt_no) === targetId || String(t.receiptNo) === targetId || String(t.invoice_no) === targetId
-    );
-
-    const displayLabel = targetReceiptNo || targetTx?.receipt_no || targetTx?.receiptNo || targetTx?.invoice_no || targetId;
-
-    if (window.confirm(`Apakah Anda yakin ingin menghapus transaksi penjualan ${displayLabel}? Data penjualan ini akan terhapus permanen dari Web Admin, Riwayat Kategori, Laba Rugi, dan Kasir Mobile.`)) {
-      const isMatch = (t) => {
-        if (!t) return false;
-        const tid = String(t.id !== undefined && t.id !== null ? t.id : '');
-        const trcpt = String(t.receipt_no || t.receiptNo || t.invoice_no || t.receipt || '');
-        if (tid && (tid === targetId || (targetReceiptNo && tid === targetReceiptNo))) return true;
-        if (targetReceiptNo && trcpt && trcpt === targetReceiptNo) return true;
-        if (trcpt && trcpt === targetId) return true;
-        return false;
-      };
-
-      const updatedSalesTx = (masterData?.salesTransactions || []).filter(t => !isMatch(t));
-      const updatedTx = (masterData?.transactions || []).filter(t => !isMatch(t));
-      const updatedOutletTx = (masterData?.outletTransactions || []).filter(t => !isMatch(t));
-
-      const updatedStockMovement = (masterData?.stockMovement || []).filter(m => {
-        if (!m) return false;
-        const refId = String(m.ref_id || m.transaction_id || m.receipt_no || '');
-        if (refId && (refId === targetId || (targetReceiptNo && refId === targetReceiptNo))) return false;
-        return true;
+    if (window.confirm(`Yakin ingin menghapus transaksi "${targetReceiptNo}" secara permanen? Data yang dihapus tidak dapat dikembalikan.`)) {
+      await executePermanentDelete({
+        key: 'salesTransactions',
+        id: targetId,
+        receipt_no: targetReceiptNo,
+        masterData,
+        setMasterData
       });
-
-      const prevDelSales = (masterData?.deletedSalesIds || []).map(x => String(x));
-      const prevDelLog = (masterData?.deletedLogisticsIds || []).map(x => String(x));
-      const updatedDelSales = Array.from(new Set([...prevDelSales, targetId, targetReceiptNo].filter(Boolean)));
-      const updatedDelLog = Array.from(new Set([...prevDelLog, targetId, targetReceiptNo].filter(Boolean)));
-
-      const updated = {
-        ...masterData,
-        _lastUpdated: Date.now(),
-        deletedSalesIds: updatedDelSales,
-        deletedLogisticsIds: updatedDelLog,
-        salesTransactions: updatedSalesTx,
-        transactions: updatedTx,
-        outletTransactions: updatedOutletTx,
-        stockMovement: updatedStockMovement
-      };
-
-      if (setMasterData) {
-        setMasterData(updated);
-      }
-
-      try {
-        const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
-        await fetch(getApiUrl('/api/master-data/delete-item'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: 'salesTransactions', id: targetId, receipt_no: targetReceiptNo })
-        });
-        if (targetReceiptNo && targetReceiptNo !== targetId) {
-          await fetch(getApiUrl('/api/master-data/delete-item'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: 'salesTransactions', id: targetReceiptNo, receipt_no: targetReceiptNo })
-          });
-        }
-      } catch (err) {
-        console.error('Delete transaction API error:', err);
-      }
 
       setSelectedInvoice(null);
       setViewMode('list');

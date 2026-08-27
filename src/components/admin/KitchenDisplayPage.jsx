@@ -6,11 +6,19 @@ import {
 import { getApiUrl } from '../../utils/apiConfig';
 import { getThemePalette } from '../../utils/themeUtils';
 
-export default function KitchenDisplayPage({ masterData, selectedBranch, themeMode = 'dark' }) {
+export default function KitchenDisplayPage({ 
+  masterData, 
+  selectedBranch, 
+  forceOutletId = null, 
+  forceKitchenOnly = false, 
+  isPosMobile = false, 
+  themeMode = 'dark' 
+}) {
   const T = getThemePalette(themeMode);
 
-  // Active Outlet Selection
+  // Active Outlet Selection (Strictly locked if forceOutletId or isPosMobile is provided)
   const [activeOutletId, setActiveOutletId] = useState(() => {
+    if (forceOutletId) return forceOutletId;
     if (selectedBranch && selectedBranch !== 'all' && selectedBranch !== 'central') {
       const match = (masterData?.outlets || []).find(o => String(o.id) === String(selectedBranch) || o.name === selectedBranch);
       if (match) return match.id;
@@ -19,14 +27,24 @@ export default function KitchenDisplayPage({ masterData, selectedBranch, themeMo
   });
 
   useEffect(() => {
+    if (forceOutletId) {
+      setActiveOutletId(forceOutletId);
+      return;
+    }
     if (selectedBranch && selectedBranch !== 'all' && selectedBranch !== 'central') {
       const match = (masterData?.outlets || []).find(o => String(o.id) === String(selectedBranch) || o.name === selectedBranch);
       if (match) setActiveOutletId(match.id);
     }
-  }, [selectedBranch, masterData?.outlets]);
+  }, [forceOutletId, selectedBranch, masterData?.outlets]);
 
-  // Station Filter: 'all' | 'kitchen' (Makanan) | 'bar' (Minuman)
-  const [stationFilter, setStationFilter] = useState('all');
+  // Station Filter: 'all' | 'kitchen' (Makanan) | 'bar' (Minuman) - Default to 'kitchen' if forceKitchenOnly
+  const [stationFilter, setStationFilter] = useState(() => forceKitchenOnly ? 'kitchen' : 'all');
+
+  useEffect(() => {
+    if (forceKitchenOnly) {
+      setStationFilter('kitchen');
+    }
+  }, [forceKitchenOnly]);
 
   // Sound enabled state
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -88,6 +106,9 @@ export default function KitchenDisplayPage({ masterData, selectedBranch, themeMo
           try {
             const ev = JSON.parse(e.data);
             if (ev.type === 'TABLE_ORDER_UPDATE' || ev.type === 'TX_CHECKOUT') {
+              if (ev.action === 'DELETE' && ev.table_id) {
+                setTableOrders(prev => prev.filter(o => String(o.table_id) !== String(ev.table_id) && String(o.id) !== String(ev.table_id) && String(o.table_number) !== String(ev.table_id)));
+              }
               fetchTableOrders();
             }
           } catch (err) {}
@@ -107,24 +128,30 @@ export default function KitchenDisplayPage({ masterData, selectedBranch, themeMo
     return (masterData?.outlets || []).find(o => String(o.id) === String(activeOutletId)) || masterData?.outlets?.[0] || { name: 'Outlet' };
   }, [masterData?.outlets, activeOutletId]);
 
-  // Filter orders by station
-  const isItemMatchStation = (itemName) => {
+  // Filter orders by station: strictly detect Drink / Bar vs Food / Kitchen
+  const isItemMatchStation = (itemName, itemCategory) => {
     const name = String(itemName || '').toLowerCase();
-    const isDrink = name.includes('teh') || name.includes('jus') || name.includes('kopi') || name.includes('milo') || name.includes('air') || name.includes('es ') || name.includes('mineral') || name.includes('sirup');
-    if (stationFilter === 'kitchen') return !isDrink;
+    const cat = String(itemCategory || '').toLowerCase();
+
+    const isDrink = cat.includes('minuman') || cat.includes('drink') || cat.includes('beverage') || cat.includes('bar') || cat.includes('rokok') ||
+      name.includes('teh') || name.includes('jus') || name.includes('kopi') || name.includes('milo') || name.includes('air') || name.includes('es ') || 
+      name.includes('mineral') || name.includes('sirup') || name.includes('soda') || name.includes('fanta') || name.includes('sprite') || 
+      name.includes('coca') || name.includes('le mineral') || name.includes('aqua') || name.includes('badak') || name.includes('rokok');
+
+    if (stationFilter === 'kitchen' || forceKitchenOnly) return !isDrink;
     if (stationFilter === 'bar') return isDrink;
     return true;
   };
 
   const filteredOrders = useMemo(() => {
     return tableOrders.filter(o => !completedOrderIds.has(o.id)).map(order => {
-      const matchedItems = (order.items || []).filter(it => isItemMatchStation(it.name));
+      const matchedItems = (order.items || []).filter(it => isItemMatchStation(it.name || it.item_name, it.category || it.category_name));
       return {
         ...order,
         displayItems: matchedItems
       };
     }).filter(order => order.displayItems.length > 0);
-  }, [tableOrders, completedOrderIds, stationFilter]);
+  }, [tableOrders, completedOrderIds, stationFilter, forceKitchenOnly]);
 
   const toggleItemReady = (orderId, idx) => {
     const key = `${orderId}_${idx}`;
@@ -134,8 +161,12 @@ export default function KitchenDisplayPage({ masterData, selectedBranch, themeMo
     }));
   };
 
-  const markOrderDone = (orderId) => {
+  const markOrderDone = (orderId, tableId) => {
     setCompletedOrderIds(prev => new Set([...prev, orderId]));
+    const targetTableId = tableId || orderId;
+    fetch(getApiUrl(`/api/pos/table-orders/${encodeURIComponent(targetTableId)}?outlet_id=${activeOutletId}`), {
+      method: 'DELETE'
+    }).catch(() => {});
   };
 
   // Helper time elapsed
@@ -156,42 +187,41 @@ export default function KitchenDisplayPage({ masterData, selectedBranch, themeMo
           </div>
           <div>
             <h1 style={{ fontSize: '1.25rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>Kitchen Display System (KDS Dapur & Bar)</span>
+              <span>{forceKitchenOnly || isPosMobile ? 'Kitchen Display System (KDS Dapur Makanan)' : 'Kitchen Display System (KDS Dapur & Bar)'}</span>
               <span style={{ fontSize: '0.72rem', background: '#10b981', color: '#fff', padding: '2px 8px', borderRadius: '6px', fontWeight: '800' }}>
                 ⚡ LIVE SSE PUSH
               </span>
             </h1>
             <p style={{ fontSize: '0.80rem', color: T.txtMuted, margin: '2px 0 0 0' }}>
-              {activeOutletObj.name} • Menampilkan tiket pesanan real-time dari Waiters & Kasir
+              <strong style={{ color: '#38bdf8' }}>{activeOutletObj.name}</strong> • Khusus tiket pesanan makanan dapur dari Waiters & Kasir
             </p>
           </div>
         </div>
 
-        {/* CONTROLS: Outlet Selector, Station Filter, Sound, Refresh */}
+        {/* CONTROLS: Outlet Indicator, Station Filter, Sound, Refresh */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          {/* Outlet Dropdown */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.bgApp, padding: '6px 12px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
-            <Store size={15} color={T.txtMuted} />
-            <select
-              value={activeOutletId}
-              onChange={(e) => setActiveOutletId(Number(e.target.value))}
-              style={{ background: 'transparent', border: 'none', color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem', outline: 'none', cursor: 'pointer' }}
-            >
-              {(masterData?.outlets || []).map(o => (
-                <option key={o.id} value={o.id} style={{ background: '#1e293b', color: '#fff' }}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.bgApp, padding: '6px 12px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
+              <Store size={15} color={T.txtMuted} />
+              <select
+                value={activeOutletId}
+                onChange={(e) => setActiveOutletId(Number(e.target.value))}
+                style={{ background: 'transparent', border: 'none', color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem', outline: 'none', cursor: 'pointer' }}
+              >
+                {(masterData?.outlets || []).map(o => (
+                  <option key={o.id} value={o.id} style={{ background: '#1e293b', color: '#fff' }}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* Station Filters */}
+          {/* Station Filters for All Users (Semua Station, Dapur Makanan, Bar Minuman) */}
           <div style={{ display: 'flex', background: T.bgApp, padding: '4px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
             <button
               onClick={() => setStationFilter('all')}
               style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', background: stationFilter === 'all' ? '#2563eb' : 'transparent', color: stationFilter === 'all' ? '#fff' : T.txtMuted, fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer' }}
             >
-              Semua Station ({filteredOrders.length})
+              Semua ({filteredOrders.length})
             </button>
             <button
               onClick={() => setStationFilter('kitchen')}
@@ -345,7 +375,7 @@ export default function KitchenDisplayPage({ masterData, selectedBranch, themeMo
                 {/* TICKET FOOTER: Selesai Saji Button */}
                 <div style={{ padding: '12px 16px', background: T.bgApp, borderTop: `1px solid ${T.border}` }}>
                   <button
-                    onClick={() => markOrderDone(order.id)}
+                    onClick={() => markOrderDone(order.id, order.table_id)}
                     style={{
                       width: '100%',
                       padding: '10px',

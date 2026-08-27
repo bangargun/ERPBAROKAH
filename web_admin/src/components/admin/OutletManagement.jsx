@@ -7,8 +7,8 @@ import {
 import OutletAnalyticsDetailModal from './OutletAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
-import { getApiUrl } from '../../utils/apiConfig';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
+import { executePermanentDelete } from '../../utils/deleteGuard';
 
 export default function OutletManagement({ masterData, setMasterData, userSession, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
@@ -259,30 +259,16 @@ export default function OutletManagement({ masterData, setMasterData, userSessio
       return;
     }
 
-    if (window.confirm(`Apakah Anda yakin ingin menghapus outlet "${outletName}"?`)) {
-      const updated = {
-        ...masterData,
-        _lastUpdated: Date.now(),
-        outlets: (masterData?.outlets || []).filter(o => o.id !== id),
-        deletedOutletIds: [...(masterData?.deletedOutletIds || []), String(id)]
-      };
-      setMasterData(updated);
+    if (window.confirm(`Apakah Anda yakin ingin menghapus outlet "${outletName}" secara permanen?`)) {
+      executePermanentDelete({
+        key: 'outlets',
+        id,
+        name: outletName,
+        masterData,
+        setMasterData
+      });
 
-      try {
-        fetch(getApiUrl('/api/master-data'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updated)
-        }).catch(err => console.warn('Failed to delete outlet on server:', err));
-
-        fetch(getApiUrl('/api/master-data/delete-item'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ itemType: 'outlets', itemId: id })
-        }).catch(err => console.warn('Failed to delete outlet tombstone:', err));
-      } catch (e) {}
-
-      alert(`Outlet "${outletName}" berhasil dihapus.`);
+      alert(`Outlet "${outletName}" berhasil dihapus secara permanen dari Web Admin, POS Kasir, dan Database.`);
     }
   };
 

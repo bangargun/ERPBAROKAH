@@ -28,6 +28,7 @@ import {
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
 import { getApiUrl } from '../../utils/apiConfig';
+import { executePermanentDelete } from '../../utils/deleteGuard';
 
 export default function ApprovalCenter({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
@@ -623,54 +624,23 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       return rId !== targetId && rNo !== targetReportNo && rId !== targetReportNo && rNo !== targetId;
     };
 
-    // 1. Trigger explicit delete-item on backend API for both keys & report_no
-    try {
-      fetch(getApiUrl('/api/master-data/delete-item'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'approvedFinanceDaily', id: targetId, report_no: targetReportNo })
-      }).catch(() => {});
-
-      if (targetReportNo && targetReportNo !== targetId) {
-        fetch(getApiUrl('/api/master-data/delete-item'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: 'approvedFinanceDaily', id: targetReportNo, report_no: targetReportNo })
-        }).catch(() => {});
-      }
-    } catch (e) {}
-
-    // 2. Filter local state, update deletedLogisticsIds & deletedReportIds, & post master data update
-    setMasterData(prev => {
-      const now = Date.now();
-      const prevDelLog = (prev.deletedLogisticsIds || []).map(x => String(x));
-      const prevDelRep = (prev.deletedReportIds || []).map(x => String(x));
-      const updatedDelLog = Array.from(new Set([...prevDelLog, targetId, targetReportNo].filter(Boolean)));
-      const updatedDelRep = Array.from(new Set([...prevDelRep, targetId, targetReportNo].filter(Boolean)));
-
-      const newMaster = {
-        ...prev,
-        _lastUpdated: now,
-        deletedLogisticsIds: updatedDelLog,
-        deletedReportIds: updatedDelRep,
-        approvedFinanceDaily: (prev.approvedFinanceDaily || []).filter(filterFn),
-        shiftClosings: (prev.shiftClosings || []).filter(filterFn),
-        shift_closings: (prev.shift_closings || []).filter(filterFn),
-        closedShifts: (prev.closedShifts || []).filter(filterFn),
-        dailyReports: (prev.dailyReports || []).filter(filterFn),
-        manualEntryRecords: (prev.manualEntryRecords || []).filter(filterFn)
-      };
-
-      try {
-        fetch(getApiUrl('/api/master-data'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newMaster)
-        }).catch(() => {});
-      } catch (e) {}
-
-      return newMaster;
+    executePermanentDelete({
+      key: 'approvedFinanceDaily',
+      id: targetId,
+      receipt_no: targetReportNo,
+      masterData,
+      setMasterData
     });
+
+    if (targetReportNo && targetReportNo !== targetId) {
+      executePermanentDelete({
+        key: 'approvedFinanceDaily',
+        id: targetReportNo,
+        receipt_no: targetReportNo,
+        masterData,
+        setMasterData
+      });
+    }
 
     setDeleteConfirmItem(null);
   };

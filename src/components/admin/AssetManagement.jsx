@@ -5,8 +5,8 @@ import {
   FileSpreadsheet, QrCode, Tag, ArrowUpDown, ChevronRight, ShieldAlert, Sparkles
 } from 'lucide-react';
 import { getThemePalette } from '../../utils/themeUtils';
-import { getApiUrl } from '../../utils/apiConfig';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
+import { executePermanentDelete } from '../../utils/deleteGuard';
 import { generateDocNumber, getOutletCode } from '../../utils/docNumberGenerator';
 import PaginationControls from './PaginationControls';
 
@@ -310,30 +310,18 @@ export default function AssetManagement({ masterData, setMasterData, selectedBra
     } catch (err) {}
   };
 
-  // Hapus Aset
-  const handleDelete = async (a) => {
-    if (!window.confirm(`Yakin ingin menghapus data aset "${a.name}" (${a.code}) secara permanen?`)) return;
+  // Handle Delete Asset
+  const handleDelete = (a) => {
+    if (!window.confirm(`Hapus aset "${a.name}" (${a.code || a.id}) secara permanen?`)) return;
 
-    const filtered = rawAssets.filter(item => String(item.id) !== String(a.id) && String(item.code) !== String(a.code));
-    const nowTs = Date.now();
-
-    const newMaster = {
-      ...masterData,
-      fixedAssets: filtered,
-      assets: filtered,
-      _lastUpdated: nowTs
-    };
-
-    setMasterData(newMaster);
-
-    // Trigger delete-item API
-    try {
-      await fetch(getApiUrl('/api/master-data/delete-item'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'fixedAssets', id: a.id, code: a.code, name: a.name })
-      });
-    } catch (err) {}
+    executePermanentDelete({
+      key: 'fixedAssets',
+      id: a.id,
+      code: a.code,
+      name: a.name,
+      masterData,
+      setMasterData
+    });
   };
 
   // Paginated Data

@@ -2,8 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Scale, Plus, Search, Edit3, Trash2, X, CheckCircle2, Box, Droplets, Hash, Package, ArrowUpDown } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
-import { getApiUrl } from '../../utils/apiConfig';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
+import { executePermanentDelete } from '../../utils/deleteGuard';
 
 export default function UnitManagement({ masterData, setMasterData, userSession, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
@@ -134,28 +134,15 @@ export default function UnitManagement({ masterData, setMasterData, userSession,
       const targetId = String(targetUnit?.id || id);
       const targetName = String(targetUnit?.name || targetUnit?.unit || unitName).trim();
 
-      const updatedDelUnitIds = Array.from(new Set([
-        ...(masterData?.deletedUnitIds || []),
-        targetId, targetId.toLowerCase(), targetName, targetName.toLowerCase()
-      ].filter(Boolean)));
+      executePermanentDelete({
+        key: 'units',
+        id: targetId,
+        name: targetName,
+        masterData,
+        setMasterData
+      });
 
-      const updated = {
-        ...masterData,
-        _lastUpdated: Date.now(),
-        _lastMutated: Date.now(),
-        units: (masterData?.units || []).filter(u => String(u.id) !== targetId && String(u.name || u.unit || '').trim().toLowerCase() !== targetName.toLowerCase()),
-        deletedUnitIds: updatedDelUnitIds
-      };
-      setMasterData(updated);
-      try { localStorage.setItem('mris_master_data', JSON.stringify(updated)); } catch(e) {}
-
-      fetch(getApiUrl('/api/master-data/delete-item'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'units', id: targetId, name: targetName })
-      }).catch(() => {});
-
-      alert(`Satuan "${unitName}" berhasil dihapus.`);
+      alert(`Satuan "${unitName}" berhasil dihapus secara permanen dari Web Admin, POS Kasir, dan Database.`);
     }
   };
 

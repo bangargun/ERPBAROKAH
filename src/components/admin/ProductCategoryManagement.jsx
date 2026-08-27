@@ -9,8 +9,8 @@ import CategoryAnalyticsDetailModal from './CategoryAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
 import { getThemePalette } from '../../utils/themeUtils';
-import { getApiUrl } from '../../utils/apiConfig';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
+import { executePermanentDelete } from '../../utils/deleteGuard';
 
 const COLOR_PRESETS = [
   { name: 'Amber Emas', bg: 'rgba(245, 158, 11, 0.15)', text: '#f59e0b', border: 'rgba(245, 158, 11, 0.3)' },
@@ -297,47 +297,16 @@ export default function ProductCategoryManagement({ masterData, setMasterData, s
     const targetCat = (masterData?.categories || []).find(c => String(c.id) === String(catId) || String(c.name || '').trim().toLowerCase() === String(catName || '').trim().toLowerCase());
     const targetId = String(targetCat?.id || catId);
     const targetCode = String(targetCat?.code || '');
-    const targetName = String(targetCat?.name || catName).trim();
-
-    const updatedDelCategoriesIds = Array.from(new Set([
-      ...(masterData?.deletedCategoriesIds || []),
-      ...(masterData?.deletedCategoryIds || []),
-      targetId,
-      targetId.toLowerCase(),
-      targetCode,
-      targetCode.toLowerCase(),
-      targetName,
-      targetName.toLowerCase()
-    ].filter(Boolean)));
-
-    const remainingCategories = (masterData?.categories || []).filter(c => {
-      const cId = String(c.id || '');
-      const cCode = String(c.code || '');
-      const cName = String(c.name || '').trim().toLowerCase();
-      if (cId === targetId) return false;
-      if (targetCode && cCode === targetCode) return false;
-      if (cName === targetName.toLowerCase()) return false;
-      return true;
+    executePermanentDelete({
+      key: 'categories',
+      id: targetId,
+      code: targetCode,
+      name: targetName,
+      masterData,
+      setMasterData
     });
 
-    const updated = {
-      ...masterData,
-      _lastUpdated: Date.now(),
-      _lastMutated: Date.now(),
-      categories: remainingCategories,
-      deletedCategoriesIds: updatedDelCategoriesIds,
-      deletedCategoryIds: updatedDelCategoriesIds
-    };
-    setMasterData(updated);
-    try { localStorage.setItem('mris_master_data', JSON.stringify(updated)); } catch(e) {}
-
-    fetch(getApiUrl('/api/master-data/delete-item'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: 'categories', id: targetId, code: targetCode, name: targetName })
-    }).catch(() => {});
-
-    alert(`Kategori "${catName}" berhasil dihapus.`);
+    alert(`Kategori "${catName}" berhasil dihapus secara permanen dari Web Admin, POS Kasir, dan Database.`);
   };
 
   // -------------------------------------------------------------

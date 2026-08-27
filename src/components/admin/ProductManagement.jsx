@@ -36,7 +36,7 @@ import PaginationControls from './PaginationControls';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
 import { getThemePalette } from '../../utils/themeUtils';
 import { getMenuFallbackImage } from '../../utils/formatUtils';
-import { requestDelete, countRelatedTransactions } from '../../utils/deleteGuard';
+import { requestDelete, countRelatedTransactions, executePermanentDelete } from '../../utils/deleteGuard';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
 import { getApiUrl } from '../../utils/apiConfig';
 
@@ -871,50 +871,19 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
           String(p.name || '').trim().toUpperCase() === String(name || '').trim().toUpperCase()
         );
 
-        const updated = (masterData?.products || []).filter(p => 
-          String(p.id) !== String(id) && 
-          String(p.sku || '').toUpperCase() !== String(id).toUpperCase() && 
-          String(p.code || '').toUpperCase() !== String(id).toUpperCase() && 
-          String(p.name || '').trim().toUpperCase() !== String(name || '').trim().toUpperCase()
-        );
-
-        const delSku = prod?.sku || prod?.code || id;
+        const delSku = prod?.sku || prod?.code || '';
         const delName = prod?.name || name;
         const delId = prod?.id || id;
 
-        const updatedDelProductIds = Array.from(new Set([
-          ...(masterData?.deletedProductIds || []),
-          String(delId),
-          String(delId).toLowerCase(),
-          String(delSku),
-          String(delSku).toLowerCase(),
-          String(delName),
-          String(delName).toLowerCase()
-        ].filter(Boolean)));
-
-        const nextMaster = {
-          ...masterData,
-          products: updated,
-          deletedProductIds: updatedDelProductIds,
-          _lastUpdated: Date.now(),
-          _lastMutated: Date.now()
-        };
-
-        setMasterData(nextMaster);
-        try {
-          localStorage.setItem('mris_master_data', JSON.stringify(nextMaster));
-        } catch (e) {}
-
-        fetch(getApiUrl('/api/master-data/delete-item'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            key: 'products',
-            id: delId,
-            sku: delSku,
-            name: delName
-          })
-        }).catch(() => {});
+        executePermanentDelete({
+          key: 'products',
+          id: delId,
+          sku: delSku,
+          code: delSku,
+          name: delName,
+          masterData,
+          setMasterData
+        });
       }
     });
   };

@@ -7,8 +7,8 @@ import {
 import CustomerAnalyticsDetailModal from './CustomerAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
-import { getApiUrl } from '../../utils/apiConfig';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
+import { executePermanentDelete } from '../../utils/deleteGuard';
 
 export default function CustomerManagement({ masterData, setMasterData, selectedBranch, userSession, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
@@ -305,14 +305,16 @@ export default function CustomerManagement({ masterData, setMasterData, selected
       return;
     }
 
-    if (window.confirm(`Apakah Anda yakin ingin menghapus pelanggan "${custName}"?`)) {
-      const updated = {
-        ...masterData,
-        _lastUpdated: Date.now(),
-        customers: (masterData.customers || []).filter(c => c.id !== id)
-      };
-      setMasterData(updated);
-      alert(`Pelanggan "${custName}" berhasil dihapus.`);
+    if (window.confirm(`Apakah Anda yakin ingin menghapus pelanggan "${custName}" secara permanen?`)) {
+      executePermanentDelete({
+        key: 'customers',
+        id,
+        name: custName,
+        masterData,
+        setMasterData
+      });
+
+      alert(`Pelanggan "${custName}" berhasil dihapus secara permanen dari Web Admin, POS Kasir, dan Database.`);
     }
   };
 
@@ -324,17 +326,18 @@ export default function CustomerManagement({ masterData, setMasterData, selected
       return;
     }
 
-    const suspiciousIds = suspiciousCustomers.map(c => c.id);
-    const updatedCustomers = (masterData?.customers || []).filter(c => !suspiciousIds.includes(c.id));
-
-    setMasterData({
-      ...masterData,
-      customers: updatedCustomers,
-      _lastUpdated: Date.now()
+    suspiciousCustomers.forEach(c => {
+      executePermanentDelete({
+        key: 'customers',
+        id: c.id,
+        name: c.name,
+        masterData,
+        setMasterData
+      });
     });
 
     setShowCleanModal(false);
-    alert(`🎉 Sukses membersihkan ${suspiciousCustomers.length} catatan kasir non-member.`);
+    alert(`🎉 Sukses membersihkan ${suspiciousCustomers.length} catatan kasir non-member secara permanen.`);
   };
 
   return (

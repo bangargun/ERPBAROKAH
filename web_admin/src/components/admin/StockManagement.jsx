@@ -30,6 +30,7 @@ import {
 import { DoubleCalendarPicker, buildExportFilename, getOutletNameStrForExport } from './SalesTransactionsPage';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
+import { executePermanentDelete } from '../../utils/deleteGuard';
 
 export default function StockManagement({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
@@ -1415,45 +1416,23 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
     const targetReportNo = String(reportNo || id);
     const targetIdStr = String(id);
 
-    setMasterData(prev => {
-      const prevDeleted = (prev.deletedLogisticsIds || []).map(x => String(x));
-      const updatedDeleted = Array.from(new Set([...prevDeleted, targetIdStr, targetReportNo]));
-
-      const filterItem = item => {
-        if (!item) return false;
-        const iId = String(item.id !== undefined && item.id !== null ? item.id : '');
-        const iRNo = String(item.report_no || item.receiptNo || item.receipt_no || '');
-        return iId !== targetIdStr && iId !== targetReportNo && iRNo !== targetIdStr && iRNo !== targetReportNo;
-      };
-
-      return {
-        ...prev,
-        _lastUpdated: Date.now(),
-        deletedLogisticsIds: updatedDeleted,
-        stockOpname: (prev.stockOpname || []).filter(filterItem),
-        approvedOpname: (prev.approvedOpname || []).filter(filterItem),
-        approvedLogistics: (prev.approvedLogistics || []).filter(filterItem),
-        stockTransfer: (prev.stockTransfer || []).filter(filterItem),
-        approvedTransfers: (prev.approvedTransfers || []).filter(filterItem),
-        damagedGoods: (prev.damagedGoods || []).filter(filterItem),
-        approvedWaste: (prev.approvedWaste || []).filter(filterItem),
-        stockMovement: (prev.stockMovement || []).filter(filterItem),
-        stockIn: (prev.stockIn || []).filter(filterItem),
-        purchases: (prev.purchases || []).filter(filterItem),
-        outletTransactions: (prev.outletTransactions || []).filter(filterItem),
-        salesTransactions: (prev.salesTransactions || []).filter(filterItem),
-        transactions: (prev.transactions || []).filter(filterItem)
-      };
+    executePermanentDelete({
+      key: tabType || 'stockOpname',
+      id: targetIdStr,
+      receipt_no: targetReportNo,
+      masterData,
+      setMasterData
     });
 
-    // Panggil delete-item endpoint di server backend untuk menjamin MySQL bersih
-    try {
-      fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data/delete-item', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: tabType || 'stockOpname', id: targetReportNo, report_no: targetReportNo })
-      }).catch(() => {});
-    } catch (e) {}
+    if (targetReportNo && targetReportNo !== targetIdStr) {
+      executePermanentDelete({
+        key: tabType || 'stockOpname',
+        id: targetReportNo,
+        receipt_no: targetReportNo,
+        masterData,
+        setMasterData
+      });
+    }
   };
 
   // GET AUTO SALES OUTFLOW FROM WEB ADMIN LOGISTIK (STOK KELUAR PENJUALAN)

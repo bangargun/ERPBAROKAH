@@ -432,7 +432,8 @@ const layout = {
 ## 🗂️ 13. Riwayat Build APK Terbaru
 | Versi | File | Tanggal Build | Perubahan |
 |-------|------|--------------|-----------| 
-| **v4.3.4** | **`POS_KASIR_v4.3.4.apk`** | 16-08-2026 | **Auto-Hide Menu & Varian Harga Rp 0**: Jika harga produk/menu untuk cabang aktif diset `0`, produk tidak muncul di grid menu POS. Jika harga varian diset `0`, varian tersebut otomatis disembunyikan dari daftar pilihan varian di drawer/modal kasir. |
+| **v4.4.1** | **`POS_KASIR_v4.4.1.apk`** / **`mris-pos.apk`** | 26-08-2026 | **Build Rilis Terbaru**: Peringatan keras anti-fraud pada struk order dapur/bar/meja (tanpa harga), tombol Tagihan sementara, fitur Download (PDF/CSV) & Kirim ke WhatsApp pada Laporan Harian POS Kasir, serta dukungan penuh sinkronisasi outlet baru. |
+| v4.3.4 | `POS_KASIR_v4.3.4.apk` | 16-08-2026 | **Auto-Hide Menu & Varian Harga Rp 0**: Jika harga produk/menu untuk cabang aktif diset `0`, produk tidak muncul di grid menu POS. Jika harga varian diset `0`, varian tersebut otomatis disembunyikan dari daftar pilihan varian di drawer/modal kasir. |
 | v4.3.3 | `POS_KASIR_v4.3.3.apk` | 16-08-2026 | Fix Auto-Push Edit Produk: Deteksi update konten produk via `_updatedAt` dan nama-based tombstone filter. |
 | v4.3.2 | `POS_KASIR_v4.3.2.apk` | 16-08-2026 | Fix auto-push (count-based) dan hapus batas 60 detik untuk master data lokal. |
 | v4.3.1 | `POS_KASIR_v4.3.1.apk` | 16-08-2026 | **Fix Sinkronisasi Kategori Menu**: Perbaikan kritis server-side union merge untuk `categories`, `products`, `ingredients` — mencegah APK lama menimpa data master terbaru dari Web Admin. |

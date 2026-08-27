@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Layout, Plus, Search, Edit3, Trash2, X, CheckCircle2, Store, Grid, Smartphone } from 'lucide-react';
 import { getThemePalette } from '../../utils/themeUtils';
-import { getApiUrl } from '../../utils/apiConfig';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
+import { executePermanentDelete } from '../../utils/deleteGuard';
 
 export default function TableManagement({ masterData, setMasterData, selectedBranch, userSession, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
@@ -93,28 +93,15 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
       const targetId = String(targetTable?.id || id);
       const targetName = String(outletName || '').trim();
 
-      const updatedDelTableIds = Array.from(new Set([
-        ...(masterData?.deletedTableIds || []),
-        targetId, targetId.toLowerCase(), targetName, targetName.toLowerCase()
-      ].filter(Boolean)));
+      executePermanentDelete({
+        key: 'tables',
+        id: targetId,
+        name: targetName,
+        masterData,
+        setMasterData
+      });
 
-      const updated = {
-        ...masterData,
-        _lastUpdated: Date.now(),
-        _lastMutated: Date.now(),
-        tables: (masterData?.tables || []).filter(t => String(t.id) !== targetId),
-        deletedTableIds: updatedDelTableIds
-      };
-      setMasterData(updated);
-      try { localStorage.setItem('mris_master_data', JSON.stringify(updated)); } catch(e) {}
-
-      fetch(getApiUrl('/api/master-data/delete-item'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'tables', id: targetId, name: targetName })
-      }).catch(() => {});
-
-      alert(`Data meja outlet "${outletName}" berhasil dihapus.`);
+      alert(`Data meja outlet "${outletName}" berhasil dihapus secara permanen dari Web Admin, POS Kasir, dan Database.`);
     }
   };
 

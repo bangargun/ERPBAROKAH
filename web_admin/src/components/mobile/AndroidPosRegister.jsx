@@ -67,7 +67,10 @@ import {
   BluetoothOff,
   Printer,
   PrinterIcon,
-  Receipt
+  Receipt,
+  Download,
+  Copy,
+  Shuffle
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────
@@ -616,10 +619,12 @@ export default function AndroidPosRegister({
 
   // Dedicated Pembayaran Modal Screen State (Matching User's Screenshot)
   const [showPaymentScreenModal, setShowPaymentScreenModal] = useState(false);
+  const [occupiedTableNotice, setOccupiedTableNotice] = useState(null); // { table, pendingOrder }
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('Cash');
   // Tanggal transaksi custom — hanya superadmin yang bisa override (default: hari ini)
   const [customTxDate, setCustomTxDate] = useState(() => new Date().toLocaleDateString('en-CA'));
   const [tenderedCash, setTenderedCash] = useState('');
+  const [onlineOrderId, setOnlineOrderId] = useState('');
 
   // Diskon Modal & Mode State (% atau Nominal)
   const [showDiscountEditModal, setShowDiscountEditModal] = useState(false);
@@ -1747,6 +1752,19 @@ export default function AndroidPosRegister({
     }
   });
 
+  // PERSISTENCE EFFECT: Simpan tableStatusMap & heldOrdersList ke LocalStorage setiap ada mutasi
+  useEffect(() => {
+    try {
+      localStorage.setItem('MRIS_POS_TABLE_STATUS_MAP', JSON.stringify(tableStatusMap || {}));
+    } catch (e) {}
+  }, [tableStatusMap]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('MRIS_POS_HELD_ORDERS_LIST', JSON.stringify(heldOrdersList || []));
+    } catch (e) {}
+  }, [heldOrdersList]);
+
   const isWaiter = useMemo(() => {
     const roleStr = String(currentUserSession?.role || userSession?.role || '').toLowerCase();
     return roleStr.includes('waiter') || roleStr.includes('pelayan');
@@ -1818,6 +1836,49 @@ export default function AndroidPosRegister({
             const ev = JSON.parse(e.data);
             if (ev.type === 'TABLE_ORDER_UPDATE' || ev.type === 'TX_CHECKOUT') {
               syncTableOrdersFromServer();
+            } else if (ev.type === 'DATA_DELETED') {
+              const delData = ev.data || {};
+              const delId = String(delData.id || '');
+              const delRcpt = String(delData.receipt_no || '');
+              const delName = String(delData.name || '').toLowerCase().trim();
+              const delKey = delData.key;
+
+              setMasterData(prev => {
+                if (!prev) return prev;
+                const next = { ...prev, _lastUpdated: Date.now() };
+                const matchDel = it => {
+                  if (!it) return false;
+                  const itId = String(it.id !== undefined && it.id !== null ? it.id : '');
+                  const itRcpt = String(it.receipt_no || it.receiptNo || it.report_no || '');
+                  const itName = String(it.name || it.title || '').toLowerCase().trim();
+                  return (delId && itId === delId) || (delRcpt && (itRcpt === delRcpt || itId === delRcpt)) || (delName && itName === delName);
+                };
+
+                if (['salesTransactions', 'transactions', 'outletTransactions'].includes(delKey)) {
+                  next.salesTransactions = (next.salesTransactions || []).filter(t => !matchDel(t));
+                  next.transactions = (next.transactions || []).filter(t => !matchDel(t));
+                  next.outletTransactions = (next.outletTransactions || []).filter(t => !matchDel(t));
+                  next.deletedSalesIds = Array.from(new Set([...(next.deletedSalesIds || []), delId, delRcpt].filter(Boolean)));
+                } else if (['products', 'menuItems'].includes(delKey)) {
+                  next.products = (next.products || []).filter(p => !matchDel(p));
+                  next.deletedProductIds = Array.from(new Set([...(next.deletedProductIds || []), delId, delName].filter(Boolean)));
+                } else if (['ingredients'].includes(delKey)) {
+                  next.ingredients = (next.ingredients || []).filter(i => !matchDel(i));
+                  next.deletedIngredientIds = Array.from(new Set([...(next.deletedIngredientIds || []), delId, delName].filter(Boolean)));
+                } else if (['approvedFinanceDaily', 'manualEntryRecords'].includes(delKey)) {
+                  next.approvedFinanceDaily = (next.approvedFinanceDaily || []).filter(r => !matchDel(r));
+                  next.manualEntryRecords = (next.manualEntryRecords || []).filter(r => !matchDel(r));
+                  next.deletedReportIds = Array.from(new Set([...(next.deletedReportIds || []), delId, delRcpt].filter(Boolean)));
+                } else if (Array.isArray(next[delKey])) {
+                  next[delKey] = next[delKey].filter(it => !matchDel(it));
+                }
+                return next;
+              });
+
+              setHeldOrdersList(prev => (prev || []).filter(o => {
+                const oId = String(o.id || o.receipt_no || '');
+                return oId !== delId && oId !== delRcpt;
+              }));
             }
           } catch (err) {}
         };
@@ -1918,24 +1979,30 @@ export default function AndroidPosRegister({
   // Get all occupied/pending table & non-table orders for Cart & Order tab
   const pendingOrdersList = React.useMemo(() => {
     const list = [];
+    const seenOrderIds = new Set();
+    const seenTableIds = new Set();
 
     // 1. Table-based orders (Dine In)
     Object.entries(tableStatusMap || {}).forEach(([tableId, statusData]) => {
-      if (statusData && statusData.status === 'occupied' && statusData.pendingOrder) {
+      if (statusData && statusData.status === 'occupied' && statusData.pendingOrder && Array.isArray(statusData.pendingOrder.items) && statusData.pendingOrder.items.length > 0) {
         const tblObj = tables.find(t => t.id === tableId);
-        const tblNum = tblObj?.number || `Meja ${tableId}`;
+        const tblNum = tblObj?.number || (String(tableId).startsWith('T-') ? `Meja ${String(tableId).split('-').pop()}` : `Meja ${tableId}`);
         const pOrder = statusData.pendingOrder;
+        const ordId = pOrder.holdTx?.id || `HOLD-TBL-${tableId}`;
+
+        seenOrderIds.add(ordId);
+        seenTableIds.add(String(tableId));
 
         list.push({
           tableId: tableId,
-          orderId: pOrder.holdTx?.id || `HOLD-${tableId}`,
-          receiptNo: pOrder.holdTx?.id || `HOLD-${tableId}`,
+          orderId: ordId,
+          receiptNo: ordId,
           date: pOrder.holdTx?.date || new Date().toISOString().split('T')[0],
-          time: pOrder.startTime || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-          customerName: pOrder.customerName || 'Pelanggan Umum',
+          time: pOrder.startTime || pOrder.holdTx?.time || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+          customerName: pOrder.customerName || pOrder.holdTx?.customer_name || 'Pelanggan Umum',
           tableNumber: tblNum,
           orderType: pOrder.holdTx?.order_type || 'Dine In',
-          totalAmount: pOrder.totalAmount || 0,
+          totalAmount: pOrder.totalAmount || pOrder.holdTx?.amount || 0,
           status: 'Belum Dibayar',
           items: pOrder.items || [],
           holdTx: pOrder.holdTx
@@ -1945,17 +2012,26 @@ export default function AndroidPosRegister({
 
     // 2. Non-table orders (Take Away / Antrean Gantung)
     (heldOrdersList || []).forEach(hOrder => {
-      if (hOrder && hOrder.status !== 'completed') {
+      if (hOrder && hOrder.status !== 'completed' && Array.isArray(hOrder.items) && hOrder.items.length > 0) {
+        const ordId = hOrder.id;
+        const tblId = hOrder.tableId || hOrder.table_id;
+
+        // Cegah duplikasi jika meja sudah tercatat di atas
+        if (tblId && seenTableIds.has(String(tblId))) return;
+        if (seenOrderIds.has(ordId)) return;
+
+        seenOrderIds.add(ordId);
+
         list.push({
-          tableId: null,
-          heldOrderId: hOrder.id,
-          orderId: hOrder.id,
-          receiptNo: hOrder.id,
+          tableId: tblId || null,
+          heldOrderId: ordId,
+          orderId: ordId,
+          receiptNo: ordId,
           date: hOrder.date || new Date().toISOString().split('T')[0],
           time: hOrder.time || '',
           customerName: hOrder.customerName || hOrder.customer_name || 'Pelanggan Umum',
-          tableNumber: hOrder.table_number || 'N/A (Take Away)',
-          orderType: hOrder.order_type || 'Take Away',
+          tableNumber: hOrder.table_number || (tblId ? `Meja ${tblId}` : 'N/A (Take Away)'),
+          orderType: hOrder.order_type || (tblId ? 'Dine In' : 'Take Away'),
           totalAmount: hOrder.amount || hOrder.totalAmount || 0,
           status: 'Belum Dibayar',
           items: hOrder.items || [],
@@ -2212,6 +2288,17 @@ export default function AndroidPosRegister({
 
   const handleClearCart = useCallback(() => {
     setCart([]);
+    setSelectedCustomer('Pelanggan Umum');
+    // Reset meja ke meja pertama yang kosong/available
+    setTableStatusMap(currentMap => {
+      const firstAvailable = tables.find(t => !currentMap[t.id] || currentMap[t.id]?.status !== 'occupied');
+      if (firstAvailable) {
+        setSelectedTableId(firstAvailable.id);
+      } else if (tables && tables.length > 0) {
+        setSelectedTableId(tables[0].id);
+      }
+      return currentMap;
+    });
     setDiscountValue('');
     setDiscountInputVal('');
     setDiscountMode('nominal');
@@ -2223,7 +2310,7 @@ export default function AndroidPosRegister({
     setProductNominalDiscount('');
     setOpenedOriginalCart(null);
     setActiveRecallOrderId(null);
-  }, []);
+  }, [tables]);
 
   // BATAL/KOSONGKAN KERANJANG TANPA MENCETAK STRUK APAPUN
   const handleCancelCartOrder = useCallback(() => {
@@ -2268,7 +2355,17 @@ export default function AndroidPosRegister({
     if (cart.length === 0 && (!openedOriginalCart || openedOriginalCart.length === 0)) return;
 
     const isDineIn = orderType === 'Dine In' && selectedTableId;
-    const tblNum = isDineIn ? (selectedTableObj?.number || 'Meja 01') : 'N/A (Take Away)';
+
+    // CEGAH PENIMPAAN MEJA YANG SUDAH TERISI (OCCUPIED TABLE PROTECTION)
+    if (isDineIn && !activeRecallOrderId) {
+      const existingOccupied = tables.find(t => t.id === selectedTableId);
+      if (existingOccupied && existingOccupied.status === 'occupied' && existingOccupied.pendingOrder && existingOccupied.pendingOrder.items?.length > 0) {
+        setOccupiedTableNotice({ table: existingOccupied, pendingOrder: existingOccupied.pendingOrder });
+        return;
+      }
+    }
+
+    const tblNum = isDineIn ? (selectedTableObj?.number || (selectedTableId ? `Meja ${selectedTableId}` : 'Meja 01')) : 'N/A (Take Away)';
     const _now2040 = new Date();
     const currentTime = `${String(_now2040.getHours()).padStart(2,'0')}:${String(_now2040.getMinutes()).padStart(2,'0')}:${String(_now2040.getSeconds()).padStart(2,'0')}`;
     const currentDate = new Date().toISOString().split('T')[0];
@@ -2287,6 +2384,7 @@ export default function AndroidPosRegister({
       customer_name: selectedCustomer || 'Pelanggan Umum',
       order_type: `${orderType} (Pesanan Gantung)`,
       table_number: tblNum,
+      table_id: selectedTableId || null,
       items: finalPrintItems,
       amount: cartTotal,
       payment_method: 'Pesanan Gantung (Belum Dibayar)',
@@ -2303,14 +2401,14 @@ export default function AndroidPosRegister({
           pendingOrder: {
             items: [...cart],
             totalAmount: cartTotal,
-            customerName: selectedCustomer,
+            customerName: selectedCustomer || 'Pelanggan Umum',
             startTime: currentTime,
             holdTx: holdTx
           }
         }
       }));
 
-      // Realtime Multi-Device Sync: Kirim ke server agar muncul seketika di Kasir & device lain
+      // Realtime Multi-Device Sync: Kirim ke server agar muncul seketika di Kasir & KDS Dapur
       fetch(getApiUrl('/api/pos/table-orders'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2321,33 +2419,54 @@ export default function AndroidPosRegister({
           table_number: tblNum,
           customer_name: selectedCustomer || 'Pelanggan Umum',
           order_type: orderType,
-          waiter_name: currentUserSession?.name || 'Waiters',
+          waiter_name: currentUserSession?.name || 'Kasir',
           items: cart,
           total_amount: cartTotal,
           status: 'occupied'
         })
       }).catch(() => {});
     } else {
-      setHeldOrdersList(prev => {
-        const filtered = prev.filter(o => o.id !== holdId);
-        return [
-          ...filtered,
-          {
-            id: holdId,
-            date: currentDate,
-            time: currentTime,
-            customerName: selectedCustomer || 'Pelanggan Umum',
-            customer_name: selectedCustomer || 'Pelanggan Umum',
-            order_type: orderType,
-            table_number: tblNum,
-            items: [...cart],
-            totalAmount: cartTotal,
-            amount: cartTotal,
-            holdTx: holdTx
-          }
-        ];
-      });
+      // Kirim juga Take Away ke KDS Dapur
+      fetch(getApiUrl('/api/pos/table-orders'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: holdId,
+          outlet_id: Number(currentOutlet.id),
+          table_id: holdId,
+          table_number: tblNum,
+          customer_name: selectedCustomer || 'Pelanggan Umum',
+          order_type: 'Take Away',
+          waiter_name: currentUserSession?.name || 'Kasir',
+          items: cart,
+          total_amount: cartTotal,
+          status: 'occupied'
+        })
+      }).catch(() => {});
     }
+
+    // Selalu simpan ke heldOrdersList sebagai master data paralel multi-order
+    setHeldOrdersList(prev => {
+      const filtered = prev.filter(o => o.id !== holdId && (isDineIn ? (o.tableId !== selectedTableId && o.table_id !== selectedTableId) : true));
+      return [
+        ...filtered,
+        {
+          id: holdId,
+          date: currentDate,
+          time: currentTime,
+          customerName: selectedCustomer || 'Pelanggan Umum',
+          customer_name: selectedCustomer || 'Pelanggan Umum',
+          order_type: orderType,
+          table_number: tblNum,
+          tableId: selectedTableId || null,
+          table_id: selectedTableId || null,
+          items: [...cart],
+          totalAmount: cartTotal,
+          amount: cartTotal,
+          holdTx: holdTx
+        }
+      ];
+    });
 
     setCurrentSaveOrderTx(holdTx);
     setOpenedOriginalCart(null); // Reset after saving/updating
@@ -3215,9 +3334,27 @@ export default function AndroidPosRegister({
     }
 
     setIsProcessingPayment(true);
-    setTimeout(() => setIsProcessingPayment(false), 2500);
+    setTimeout(() => setIsProcessingPayment(false), 2000);
     setLastPaymentTimestamp(nowMs);
     setLastProcessedCartSummary(currentCartSummary);
+
+    // 1. Snapshot State Keranjang Saat Ini (Agar Eksekusi Instan & Bebas Race Condition)
+    const paidCart = [...cart];
+    const paidCartSubtotal = cartSubtotal;
+    const paidTotalItemDiscounts = totalItemDiscounts;
+    const paidOverallSummaryDiscount = overallSummaryDiscount;
+    const paidDiscountAmount = discountAmount;
+    const paidCartTotal = cartTotal;
+    const paidSelectedCustomer = selectedCustomer || 'Pelanggan Umum';
+    const paidSelectedTableId = selectedTableId;
+    const paidOrderType = orderType;
+    const paidSelectedTableObj = selectedTableObj;
+    const paidActiveRecallOrderId = activeRecallOrderId;
+
+    // 2. OPTIMISTIC INSTANT UI RESPONSE: Tutup modal & Bersihkan cart seketika (0ms lag)
+    setShowPaymentScreenModal(false);
+    handleClearCart();
+    playSuccessKaching();
 
     const isSuperAdminUser = (() => {
       const r = String(currentUserSession?.role || userSession?.role || '').toLowerCase();
@@ -3239,7 +3376,17 @@ export default function AndroidPosRegister({
     });
     const _now2601 = new Date();
     const currentTime = `${String(_now2601.getHours()).padStart(2,'0')}:${String(_now2601.getMinutes()).padStart(2,'0')}:${String(_now2601.getSeconds()).padStart(2,'0')}`;
-    const paidVal = customTendered !== null && customTendered !== '' ? Number(customTendered) : cartTotal;
+    const paidVal = customTendered !== null && customTendered !== '' ? Number(customTendered) : paidCartTotal;
+
+    const isOnlineDelivery = ['GrabFood', 'Go-Food', 'ShopeeFood', 'Maxim Food'].includes(methodName);
+    const finalCategory = isOnlineDelivery 
+      ? `Penjualan Online Delivery (${methodName})`
+      : (paidOrderType === 'Dine In' ? 'Penjualan Dine-in' : 'Penjualan Takeaway / Online');
+
+    const onlineNoteSuffix = onlineOrderId.trim() ? ` [Kode: ${onlineOrderId.trim()}]` : '';
+    const finalNotes = isOnlineDelivery
+      ? `Online Delivery (${methodName})${onlineNoteSuffix}`
+      : `${paidOrderType} (${paidOrderType === 'Dine In' ? (paidSelectedTableObj?.number || 'Dine In') : 'Take Away'}) - Pembayaran ${methodName}`;
 
     const newTx = {
       id: receiptNo,
@@ -3250,40 +3397,42 @@ export default function AndroidPosRegister({
       branch_id: Number(currentOutlet.id),
       outlet: currentOutlet.name,
       branch_name: currentOutlet.name,
-      customer_name: selectedCustomer,
-      order_type: orderType,
+      customer_name: isOnlineDelivery && paidSelectedCustomer === 'Pelanggan Umum' ? `Pelanggan ${methodName}` : paidSelectedCustomer,
+      order_type: isOnlineDelivery ? 'Online Delivery' : paidOrderType,
       type: 'income',
-      category: orderType === 'Dine In' ? 'Penjualan Dine-in' : 'Penjualan Takeaway / Online',
-      table_number: orderType === 'Dine In' ? selectedTableObj.number : 'N/A (Take Away)',
-      items: cart.map(item => ({
+      category: finalCategory,
+      table_number: isOnlineDelivery ? `Online (${methodName})` : (paidOrderType === 'Dine In' ? (paidSelectedTableObj?.number || (paidSelectedTableId ? `Meja ${paidSelectedTableId}` : 'Meja 01')) : 'N/A (Take Away)'),
+      items: paidCart.map(item => ({
         name: item.name,
         qty: item.qty,
         price_unit: item.price,
         discount_unit: item.discount || 0,
         amount: Math.max(0, (item.price - (item.discount || 0))) * item.qty
       })),
-      subtotal: cartSubtotal,
-      item_discounts: totalItemDiscounts,
-      summary_discount: overallSummaryDiscount,
-      discount_amount: discountAmount,
-      amount: cartTotal,
+      subtotal: paidCartSubtotal,
+      item_discounts: paidTotalItemDiscounts,
+      summary_discount: paidOverallSummaryDiscount,
+      discount_amount: paidDiscountAmount,
+      amount: paidCartTotal,
       paid_amount: paidVal,
       cash_paid: paidVal,
       tendered: paidVal,
       bayar: paidVal,
-      change_amount: Math.max(0, paidVal - cartTotal),
-      kembalian: Math.max(0, paidVal - cartTotal),
-      change: Math.max(0, paidVal - cartTotal),
+      change_amount: Math.max(0, paidVal - paidCartTotal),
+      kembalian: Math.max(0, paidVal - paidCartTotal),
+      change: Math.max(0, paidVal - paidCartTotal),
       payment_method: methodName,
       cashier: currentUserSession?.name || 'Kasir Mobile',
-      notes: `${orderType} (${orderType === 'Dine In' ? selectedTableObj.number : 'Take Away'}) - Pembayaran ${methodName}`,
+      notes: finalNotes,
       status: 'approved'
     };
 
+    setOnlineOrderId('');
+
     // Auto-save new customer into Web Master Data (masterData.customers) if not registered yet
-    const rawCustomerName = (selectedCustomer || 'Pelanggan Umum').trim();
+    const rawCustomerName = (paidSelectedCustomer || 'Pelanggan Umum').trim();
     const finalCustomerName = rawCustomerName === '' ? 'Pelanggan Umum' : rawCustomerName;
-    const finalTotalAmount = cartTotal;
+    const finalTotalAmount = paidCartTotal;
 
     const pointRatio = masterData?.loyaltyPointRatio || 100000;
     const earnedPoints = Math.floor((finalTotalAmount || 0) / pointRatio);
@@ -3296,114 +3445,130 @@ export default function AndroidPosRegister({
       const posOutletId = currentOutlet?.id || 'ALL';
       const posOutletName = currentOutlet?.name || 'Cabang POS';
 
-      if (existingIdx !== -1) {
-        updatedCustomersList = updatedCustomersList.map((c, idx) => {
-          if (idx === existingIdx) {
-            const currentPts = c.points || 0;
-            const updatedPts = Math.max(0, currentPts + earnedPoints - pointsDeducted);
-            return {
-              ...c,
-              outlet_id: (c.outlet_id && c.outlet_id !== 'ALL') ? c.outlet_id : posOutletId,
-              outlet_name: (c.outlet_name && c.outlet_name !== 'Semua Outlet (Nasional)') ? c.outlet_name : posOutletName,
-              total_spend: (c.total_spend || 0) + finalTotalAmount,
-              points: updatedPts,
-              total_orders: (c.total_orders || 0) + 1
-            };
-          }
-          return c;
-        });
+      if (existingIdx >= 0) {
+        const existingCust = updatedCustomersList[existingIdx];
+        const currentPts = Number(existingCust.points || existingCust.loyalty_points || 0);
+        const newPts = Math.max(0, currentPts + earnedPoints - pointsDeducted);
+        const currentSpend = Number(existingCust.total_spend || 0) + finalTotalAmount;
+        const currentVisits = Number(existingCust.total_visits || 0) + 1;
+
+        let newTier = existingCust.tier || 'Reguler';
+        if (currentSpend >= 5000000) newTier = 'Platinum';
+        else if (currentSpend >= 2000000) newTier = 'Gold';
+        else if (currentSpend >= 500000) newTier = 'Silver';
+
+        const updatedCust = {
+          ...existingCust,
+          points: newPts,
+          loyalty_points: newPts,
+          total_spend: currentSpend,
+          total_visits: currentVisits,
+          tier: newTier,
+          last_visit: currentDate,
+          updated_at: new Date().toISOString()
+        };
+
+        updatedCustomersList = [
+          ...updatedCustomersList.slice(0, existingIdx),
+          updatedCust,
+          ...updatedCustomersList.slice(existingIdx + 1)
+        ];
       } else {
-        const newCustomerObj = {
-          id: Date.now(),
+        const newCustId = generateDocNumber({
+          prefix: 'CUST',
+          outlet: currentOutlet,
+          outlets: outlets,
+          date: currentDate,
+          existingRecords: updatedCustomersList,
+          digits: 4
+        });
+        const createdCust = {
+          id: newCustId,
+          code: newCustId,
           name: finalCustomerName,
           phone: '-',
           email: '-',
-          customer_type: 'Pelanggan POS (Auto-Saved)',
+          address: posOutletName,
           outlet_id: posOutletId,
           outlet_name: posOutletName,
-          total_orders: 1,
+          tier: finalTotalAmount >= 2000000 ? 'Gold' : (finalTotalAmount >= 500000 ? 'Silver' : 'Reguler'),
+          points: earnedPoints,
+          loyalty_points: earnedPoints,
           total_spend: finalTotalAmount,
-          points: Math.max(0, earnedPoints - pointsDeducted),
-          join_date: currentDate
+          total_visits: 1,
+          join_date: currentDate,
+          last_visit: currentDate,
+          created_at: new Date().toISOString()
         };
-        updatedCustomersList = [newCustomerObj, ...updatedCustomersList];
+        updatedCustomersList = [createdCust, ...updatedCustomersList];
       }
     }
 
-    // GENERATE STOCK OUTFLOW LOGISTIC MOVEMENTS & PRODUCT/INGREDIENT (BAHAN BAKU) STOCK DEDUCTION
+    // 1. Stock Movements for Menu Items Sold (Outbound)
     const newStockMovements = [];
-    let updatedProducts = [...(masterData?.products || [])];
-    let updatedIngredients = [...(masterData?.ingredients || [])];
+    let updatedProducts = masterData?.products || [];
+    let updatedIngredients = masterData?.ingredients || [];
+    const masterProductsList = masterData?.products || [];
     const masterIngredientsList = masterData?.ingredients || [];
 
-    cart.forEach(cartItem => {
-      const itemLower = (cartItem.name || '').toLowerCase().trim();
-      const qtySold = Number(cartItem.qty || 1);
-
-      // 1. Log product outflow
+    paidCart.forEach(cartItem => {
+      const qtySold = cartItem.qty || 1;
       newStockMovements.push({
-        id: `move-${receiptNo}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+        id: `move-${receiptNo}-${cartItem.id || cartItem.name}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
         date: currentDate,
         time: currentTime,
         outlet_id: Number(currentOutlet.id),
         type: 'OUT',
         item_name: cartItem.name,
+        item_type: 'Produk Jadi',
         qty: qtySold,
         unit: 'porsi',
-        supplier: 'POS Sales (Penjualan Kasir Mobile)',
-        created_by: 'Kasir Mobile APK',
+        supplier: `Penjualan Kasir POS (${receiptNo})`,
+        created_by: currentUserSession?.name || 'Kasir Mobile',
         price_unit: cartItem.price,
         total_price: cartItem.price * qtySold,
         type_input: 'auto_pos'
       });
 
-      // 2. Reduce product stock if matching product exists (Strict ID & SKU matching)
+      // Update product item stock
       updatedProducts = updatedProducts.map(p => {
-        const isMatch = (cartItem.id && String(p.id) === String(cartItem.id)) ||
-                        (cartItem.product_id && String(p.id) === String(cartItem.product_id)) ||
-                        (cartItem.sku && p.sku && cartItem.sku === p.sku) ||
-                        (p.name?.toLowerCase().trim() === itemLower);
-        if (isMatch) {
+        if (p.id === cartItem.id || String(p.id) === String(cartItem.id)) {
           const currentStk = Number(p.stock || p.stok || 0);
-          return { ...p, stock: Math.max(0, currentStk - qtySold), stok: Math.max(0, currentStk - qtySold) };
+          return {
+            ...p,
+            stock: Math.max(0, currentStk - qtySold),
+            stok: Math.max(0, currentStk - qtySold)
+          };
         }
         return p;
       });
 
-      // 3. Deduct Bahan Baku (Ingredients) based on recipe compositions or auto-matching
-      const matchedProd = (masterData?.products || []).find(p => 
-        (cartItem.id && String(p.id) === String(cartItem.id)) ||
-        (cartItem.product_id && String(p.id) === String(cartItem.product_id)) ||
-        (cartItem.sku && p.sku && cartItem.sku === p.sku) ||
-        (p.name?.toLowerCase().trim() === itemLower)
-      );
+      // Recipe & Ingredients Deduction
+      const masterProduct = masterProductsList.find(p => p.id === cartItem.id || String(p.id) === String(cartItem.id) || p.name === cartItem.name);
+      const itemLower = (cartItem.name || '').toLowerCase();
 
-      if (matchedProd && matchedProd.compositions && matchedProd.compositions.length > 0) {
-        matchedProd.compositions.forEach((comp, cIdx) => {
-          const ingQty = Number(comp.qty || comp.amount || 1) * qtySold;
-          const ingName = comp.ingredient_name || comp.name || 'Bahan Baku';
-
+      if (masterProduct && masterProduct.compositions && masterProduct.compositions.length > 0) {
+        masterProduct.compositions.forEach(comp => {
+          const ingQty = Number(comp.amount || 0) * qtySold;
           newStockMovements.push({
-            id: `move-ing-${receiptNo}-${Date.now()}-${cIdx}`,
+            id: `move-ing-${receiptNo}-${comp.ingredient_id}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
             date: currentDate,
             time: currentTime,
             outlet_id: Number(currentOutlet.id),
             type: 'OUT',
-            item_name: ingName,
+            item_name: comp.ingredient_name || comp.name || 'Bahan Baku',
             item_type: 'Bahan Baku',
             qty: ingQty,
-            unit: comp.unit || 'Gram',
+            unit: comp.unit || 'gram',
             supplier: `Pemakaian Menu POS: ${cartItem.name}`,
             created_by: 'Kasir Mobile APK',
-            price_unit: comp.cogs || 0,
-            total_price: Math.round((comp.cogs || 0) * ingQty),
+            price_unit: comp.cost_per_unit || 0,
+            total_price: Math.round((comp.cost_per_unit || 0) * ingQty),
             type_input: 'auto_pos'
           });
 
           updatedIngredients = updatedIngredients.map(ing => {
-            const matchIng = (comp.ingredient_id && String(ing.id) === String(comp.ingredient_id)) ||
-                             (ing.name?.toLowerCase().trim() === ingName.toLowerCase().trim());
-            if (matchIng) {
+            if (String(ing.id) === String(comp.ingredient_id)) {
               const currentStk = Number(ing.stock || ing.stok || 0);
               return { ...ing, stock: Math.max(0, currentStk - ingQty), stok: Math.max(0, currentStk - ingQty) };
             }
@@ -3411,7 +3576,6 @@ export default function AndroidPosRegister({
           });
         });
       } else {
-        // Fallback: match ingredient by name in masterIngredientsList
         const matchedIng = masterIngredientsList.find(ing => {
           const ingLower = (ing.name || '').toLowerCase();
           if (itemLower.includes('ayam') || itemLower.includes('chicken')) return ingLower.includes('ayam');
@@ -3423,28 +3587,27 @@ export default function AndroidPosRegister({
         });
 
         if (matchedIng) {
-          const ingQty = qtySold;
           newStockMovements.push({
-            id: `move-ing-${receiptNo}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+            id: `move-ing-${receiptNo}-${matchedIng.id}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
             date: currentDate,
             time: currentTime,
             outlet_id: Number(currentOutlet.id),
             type: 'OUT',
             item_name: matchedIng.name,
             item_type: 'Bahan Baku',
-            qty: ingQty,
+            qty: qtySold,
             unit: matchedIng.unit || 'porsi',
             supplier: `Pemakaian Menu POS: ${cartItem.name}`,
             created_by: 'Kasir Mobile APK',
             price_unit: matchedIng.cost || matchedIng.price_per_unit || 0,
-            total_price: Math.round((matchedIng.cost || matchedIng.price_per_unit || 0) * ingQty),
+            total_price: Math.round((matchedIng.cost || matchedIng.price_per_unit || 0) * qtySold),
             type_input: 'auto_pos'
           });
 
           updatedIngredients = updatedIngredients.map(ing => {
             if (String(ing.id) === String(matchedIng.id)) {
               const currentStk = Number(ing.stock || ing.stok || 0);
-              return { ...ing, stock: Math.max(0, currentStk - ingQty), stok: Math.max(0, currentStk - ingQty) };
+              return { ...ing, stock: Math.max(0, currentStk - qtySold), stok: Math.max(0, currentStk - qtySold) };
             }
             return ing;
           });
@@ -3459,7 +3622,7 @@ export default function AndroidPosRegister({
       is_offline_pending: !isOnlineNow
     };
 
-    // Save transaction, stock movements, updated products, ingredients & customers directly into Web Master Data
+    // Save transaction directly into Web Master Data
     setMasterData(prev => {
       const updated = {
         ...prev,
@@ -3472,7 +3635,7 @@ export default function AndroidPosRegister({
         transactions: [finalTx, ...(prev?.transactions || [])]
       };
 
-      // 1. Simpan Outbox Queue Lokal (Guaranteed Persistence untuk Transaksi Offline)
+      // 1. Simpan Outbox Queue Lokal (Guaranteed Persistence)
       try {
         const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
         const q = qRaw ? JSON.parse(qRaw) : [];
@@ -3491,7 +3654,6 @@ export default function AndroidPosRegister({
       .then(res => res.json())
       .then(resData => {
         if (resData && (resData.success || resData.status === 'success')) {
-          // Sukses terkonfirmasi server: hapus dari outbox
           try {
             const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
             const q = qRaw ? JSON.parse(qRaw) : [];
@@ -3502,24 +3664,42 @@ export default function AndroidPosRegister({
         }
       })
       .catch(() => {
-        // Jika offline atau jaringan lambat, doFlushOfflineQueue akan otomatis memproses saat online
         doFlushOfflineQueue();
       });
 
       return updated;
     });
 
+    // HAPUS PERMANEN TIKET DARI KDS DAPUR & BAR SAAT PEMBAYARAN KASIR SELESAI
+    // (Pesanan lunas = otomatis selesai = langsung hilang dari layar KDS tanpa menunggu tombol manual)
+    const targetsToDelete = [
+      paidSelectedTableId,
+      paidActiveRecallOrderId,
+      `TO-${currentOutlet.id}-${paidSelectedTableId}`,
+      `HOLD-${paidSelectedTableId}`,
+      `KDS-${newTx.id}`,
+      paidSelectedTableObj?.number
+    ].filter(Boolean);
+
+    targetsToDelete.forEach(tId => {
+      fetch(getApiUrl(`/api/pos/table-orders/${encodeURIComponent(tId)}?outlet_id=${currentOutlet.id}`), {
+        method: 'DELETE'
+      }).catch(() => {});
+    });
+
     // Reset Table status back to Available (Kosong) & remove from heldOrdersList
-    if (orderType === 'Dine In' && selectedTableId) {
+    if (paidSelectedTableId) {
       setTableStatusMap(prev => {
         const copy = { ...prev };
-        delete copy[selectedTableId];
+        delete copy[paidSelectedTableId];
         return copy;
       });
     }
-    if (activeRecallOrderId) {
-      setHeldOrdersList(prev => prev.filter(o => o.id !== activeRecallOrderId));
+    if (paidActiveRecallOrderId) {
+      setHeldOrdersList(prev => prev.filter(o => o.id !== paidActiveRecallOrderId && (paidSelectedTableId ? (o.tableId !== paidSelectedTableId && o.table_id !== paidSelectedTableId) : true)));
       setActiveRecallOrderId(null);
+    } else if (paidSelectedTableId) {
+      setHeldOrdersList(prev => prev.filter(o => o.tableId !== paidSelectedTableId && o.table_id !== paidSelectedTableId));
     }
 
     setOpenedOriginalCart(null);
@@ -4448,7 +4628,30 @@ export default function AndroidPosRegister({
                   boxShadow: isActive ? '0 4px 14px rgba(245,158,11,0.45)' : 'none'
                 }}
               >
-                {showSyncDot && (
+                {nav.id === 'chart' && pendingOrdersList.length > 0 ? (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '2px',
+                      right: '3px',
+                      minWidth: '17px',
+                      height: '17px',
+                      borderRadius: '9px',
+                      background: '#ef4444',
+                      color: '#ffffff',
+                      fontSize: '0.65rem',
+                      fontWeight: '900',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '0 4px',
+                      boxShadow: '0 0 8px rgba(239,68,68,0.8)',
+                      zIndex: 2
+                    }}
+                  >
+                    {pendingOrdersList.length}
+                  </span>
+                ) : showSyncDot ? (
                   <span
                     style={{
                       position: 'absolute',
@@ -4461,7 +4664,7 @@ export default function AndroidPosRegister({
                       boxShadow: '0 0 6px #34d399'
                     }}
                   />
-                )}
+                ) : null}
                 <IconComp size={19} color={isActive ? '#000000' : '#f59e0b'} strokeWidth={isActive ? 2.5 : 1.8} />
                 <span style={{ fontSize: '0.64rem', fontWeight: isActive ? '900' : '700', color: isActive ? '#000000' : '#f59e0b' }}>{nav.label}</span>
               </button>
@@ -4857,9 +5060,10 @@ export default function AndroidPosRegister({
                             const targetId = e.target.value;
                             const targetTable = tables.find(t => t.id === targetId);
                             if (targetTable) {
-                              setSelectedTableId(targetId);
-                              if (targetTable.pendingOrder && targetTable.pendingOrder.items) {
-                                handleCheckoutOccupiedTable(targetTable);
+                              if (targetTable.status === 'occupied' && targetTable.pendingOrder && targetTable.pendingOrder.items?.length > 0 && activeRecallOrderId !== (targetTable.pendingOrder.holdTx?.id || `HOLD-${targetTable.id}`)) {
+                                setOccupiedTableNotice({ table: targetTable, pendingOrder: targetTable.pendingOrder });
+                              } else {
+                                setSelectedTableId(targetId);
                               }
                             }
                           }}
@@ -5989,12 +6193,15 @@ export default function AndroidPosRegister({
         )}
 
         
-        {/* TAB NAVIGASI: KITCHEN DISPLAY SYSTEM (KDS DAPUR & BAR) */}
+        {/* TAB NAVIGASI: KITCHEN DISPLAY SYSTEM (KDS DAPUR MAKANAN KHUSUS OUTLET AKTIF) */}
         {activeNavTab === 'kds' && (
           <div style={{ flex: 1, height: '100%', width: '100%', overflow: 'hidden', background: 'var(--pos-bg-app)' }}>
             <KitchenDisplayPage
               masterData={masterData}
               selectedBranch={currentOutlet?.id || selectedBranch}
+              forceOutletId={currentOutlet?.id}
+              forceKitchenOnly={true}
+              isPosMobile={true}
               themeMode={appTheme === 'soft_blue' ? 'soft_blue' : 'dark'}
             />
           </div>
@@ -12594,6 +12801,24 @@ export default function AndroidPosRegister({
                   </div>
                 );
               })()}
+              {/* ONLINE DELIVERY ORDER ID INPUT PANEL */}
+              {['GrabFood', 'Go-Food', 'ShopeeFood', 'Maxim Food'].includes(selectedPaymentMethod) && (
+                <div style={{ background: '#fff7ed', padding: '14px 16px', borderRadius: '14px', border: '1.5px solid #fdba74', display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                  <div style={{ fontSize: '0.80rem', color: '#c2410c', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>🛵 Nomor / Kode Order {selectedPaymentMethod} (Opsional):</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={onlineOrderId}
+                    onChange={e => setOnlineOrderId(e.target.value)}
+                    placeholder="Contoh: GF-8291 / Pin Driver Grab"
+                    style={{ padding: '10px 14px', borderRadius: '10px', border: '1.5px solid #fed7aa', fontSize: '0.92rem', fontWeight: '800', outline: 'none', color: '#0f172a', background: '#ffffff' }}
+                  />
+                  <div style={{ fontSize: '0.72rem', color: '#9a3412', opacity: 0.9 }}>
+                    Kode ini akan otomatis tercatat di struk kasir & rekap shift harian untuk mempermudah rekonsiliasi dengan aplikasi {selectedPaymentMethod}.
+                  </div>
+                </div>
+              )}
 
               {/* CASH TENDERED QUICK PRESET BAR (IF CASH IS SELECTED) */}
               {selectedPaymentMethod === 'Cash' && (
@@ -12720,27 +12945,28 @@ export default function AndroidPosRegister({
 
                 return (
                   <button
-                    disabled={!isPaymentValid}
+                    disabled={!isPaymentValid || isProcessingPayment}
                     onClick={() => {
+                      if (isProcessingPayment) return;
                       handleExecuteQuickPayment(selectedPaymentMethod, numTendered);
-                      setShowPaymentScreenModal(false);
                     }}
                     style={{
                       width: '100%',
                       height: '48px',
-                      background: isPaymentValid ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : '#cbd5e1',
-                      color: isPaymentValid ? '#ffffff' : '#475569',
+                      background: (isPaymentValid && !isProcessingPayment) ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : '#94a3b8',
+                      color: '#ffffff',
                       border: 'none',
                       borderRadius: '12px',
                       fontSize: '1.05rem',
                       fontWeight: '900',
-                      cursor: isPaymentValid ? 'pointer' : 'not-allowed',
-                      boxShadow: isPaymentValid ? '0 4px 14px rgba(37,99,235,0.4)' : 'none',
+                      cursor: (isPaymentValid && !isProcessingPayment) ? 'pointer' : 'not-allowed',
+                      boxShadow: (isPaymentValid && !isProcessingPayment) ? '0 4px 14px rgba(37,99,235,0.4)' : 'none',
                       transition: 'all 0.2s ease',
-                      marginTop: 'auto'
+                      marginTop: 'auto',
+                      opacity: isProcessingPayment ? 0.7 : 1
                     }}
                   >
-                    Bayar
+                    {isProcessingPayment ? 'Memproses Transaksi...' : 'Bayar'}
                   </button>
                 );
               })()}
@@ -16413,6 +16639,259 @@ export default function AndroidPosRegister({
               >
                 <Send size={16} />
                 <span>Buka WhatsApp & Kirim</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL PAPAN KETERANGAN MEJA TERISI (OCCUPIED TABLE PROTECTION) ── */}
+      {occupiedTableNotice && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '16px'
+        }}>
+          <div className="glass-card animate-fade-in" style={{
+            width: '100%', maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto',
+            padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '18px',
+            border: '2px solid #ef4444', boxShadow: '0 12px 36px rgba(239,68,68,0.35)',
+            display: 'flex', flexDirection: 'column', gap: '16px'
+          }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', boxShadow: '0 4px 12px rgba(239,68,68,0.4)' }}>
+                  <AlertCircle size={22} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>{occupiedTableNotice.table?.number || `Meja ${occupiedTableNotice.table?.id || 'Terisi'}`} Sedang Terisi!</span>
+                  </h3>
+                  <span style={{ fontSize: '0.74rem', color: '#f87171', fontWeight: '800' }}>
+                    ⚠️ Tidak dapat diisi order baru sebelum dibayar atau dibatalkan
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setOccupiedTableNotice(null)}
+                style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Rincian Pesanan Meja Terisi */}
+            <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border-card)', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.84rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Nama Pelanggan:</span>
+                <span style={{ fontWeight: '900', color: 'var(--pos-txt-primary)' }}>
+                  {occupiedTableNotice.pendingOrder?.customerName || occupiedTableNotice.pendingOrder?.customer_name || 'Pelanggan Umum'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Waktu Mulai Pesan:</span>
+                <span style={{ fontWeight: '800', color: '#38bdf8' }}>
+                  {occupiedTableNotice.pendingOrder?.startTime || occupiedTableNotice.pendingOrder?.holdTx?.time || '-'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Pelayan / Kasir:</span>
+                <span style={{ fontWeight: '800', color: 'var(--pos-txt-secondary)' }}>
+                  {occupiedTableNotice.pendingOrder?.waiterName || occupiedTableNotice.pendingOrder?.holdTx?.cashier || currentUserSession?.name || 'Kasir'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed var(--pos-border-card)', paddingTop: '8px' }}>
+                <span style={{ color: 'var(--pos-txt-secondary)', fontWeight: '800' }}>Total Tagihan Sementara:</span>
+                <span style={{ fontWeight: '900', color: '#34d399', fontSize: '1.05rem' }}>
+                  {formatRupiah(occupiedTableNotice.pendingOrder?.totalAmount || occupiedTableNotice.pendingOrder?.amount || 0)}
+                </span>
+              </div>
+
+              {/* Daftar Menu di Meja */}
+              <div style={{ marginTop: '6px', borderTop: '1px solid var(--pos-border-card)', paddingTop: '8px' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--pos-txt-secondary)', marginBottom: '6px', textTransform: 'uppercase' }}>
+                  Menu yang Sudah Dipesan:
+                </div>
+                <div style={{ maxHeight: '120px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {(occupiedTableNotice.pendingOrder?.items || []).map((it, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', padding: '4px 8px', background: 'var(--pos-bg-card)', borderRadius: '6px' }}>
+                      <span style={{ color: 'var(--pos-txt-primary)', fontWeight: '700' }}>
+                        {it.qty || 1}x {it.name || it.item_name}
+                      </span>
+                      <span style={{ color: 'var(--pos-txt-secondary)', fontWeight: '800' }}>
+                        {formatRupiah((it.price || it.price_unit || 0) * (it.qty || 1))}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Tombol Aksi Meja Terisi */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                {/* 1. Buka & Tambah Menu */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const tbl = occupiedTableNotice.table;
+                    const pOrder = occupiedTableNotice.pendingOrder;
+                    if (tbl && pOrder) {
+                      handleCheckoutOccupiedTable({ ...tbl, pendingOrder: pOrder });
+                    }
+                    setOccupiedTableNotice(null);
+                  }}
+                  style={{
+                    padding: '11px 12px',
+                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontWeight: '900',
+                    fontSize: '0.80rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    boxShadow: '0 4px 12px rgba(37,99,235,0.3)'
+                  }}
+                  title="Buka pesanan meja ke kasir untuk menambah menu tambahan"
+                >
+                  <FileText size={15} />
+                  <span>Buka / Tambah Menu</span>
+                </button>
+
+                {/* 2. Bayar Meja Ini */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const tbl = occupiedTableNotice.table;
+                    const pOrder = occupiedTableNotice.pendingOrder;
+                    if (tbl && pOrder) {
+                      handleQuickPayPendingOrder({
+                        tableId: tbl.id,
+                        orderId: pOrder.holdTx?.id || `HOLD-${tbl.id}`,
+                        receiptNo: pOrder.holdTx?.id || `HOLD-${tbl.id}`,
+                        customerName: pOrder.customerName || 'Pelanggan Umum',
+                        tableNumber: tbl.number || `Meja ${tbl.id}`,
+                        orderType: 'Dine In',
+                        totalAmount: pOrder.totalAmount || pOrder.amount || 0,
+                        items: pOrder.items || []
+                      });
+                    }
+                    setOccupiedTableNotice(null);
+                  }}
+                  style={{
+                    padding: '11px 12px',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontWeight: '900',
+                    fontSize: '0.80rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    boxShadow: '0 4px 12px rgba(16,185,129,0.3)'
+                  }}
+                  title="Langsung buka layar pembayaran kasir untuk melunasi meja ini"
+                >
+                  <CreditCard size={15} />
+                  <span>Bayar Sekarang</span>
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                {/* 3. Pindah Meja */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const tbl = occupiedTableNotice.table;
+                    const pOrder = occupiedTableNotice.pendingOrder;
+                    if (tbl && pOrder) {
+                      handleCheckoutOccupiedTable({ ...tbl, pendingOrder: pOrder });
+                      setShowMoveTableModal(true);
+                    }
+                    setOccupiedTableNotice(null);
+                  }}
+                  style={{
+                    padding: '10px 12px',
+                    background: 'rgba(99,102,241,0.15)',
+                    border: '1px solid #6366f1',
+                    color: '#818cf8',
+                    borderRadius: '10px',
+                    fontWeight: '800',
+                    fontSize: '0.78rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                  title="Pindahkan pesanan tamu ke meja kosong lain"
+                >
+                  <Shuffle size={14} />
+                  <span>Pindah Meja</span>
+                </button>
+
+                {/* 4. Batalkan / Hapus Pesanan */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const tbl = occupiedTableNotice.table;
+                    const pOrder = occupiedTableNotice.pendingOrder;
+                    if (tbl && pOrder) {
+                      handleDeletePendingOrder({
+                        tableId: tbl.id,
+                        orderId: pOrder.holdTx?.id || `HOLD-${tbl.id}`,
+                        receiptNo: pOrder.holdTx?.id || `HOLD-${tbl.id}`,
+                        customerName: pOrder.customerName || 'Pelanggan Umum'
+                      });
+                    }
+                    setOccupiedTableNotice(null);
+                  }}
+                  style={{
+                    padding: '10px 12px',
+                    background: 'rgba(239,68,68,0.15)',
+                    border: '1px solid #ef4444',
+                    color: '#f87171',
+                    borderRadius: '10px',
+                    fontWeight: '800',
+                    fontSize: '0.78rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                  title="Hapus pesanan meja jika tamu membatalkan pesanan"
+                >
+                  <Trash2 size={14} />
+                  <span>Batalkan Pesanan</span>
+                </button>
+              </div>
+
+              {/* 5. Tutup & Pilih Meja Lain */}
+              <button
+                type="button"
+                onClick={() => setOccupiedTableNotice(null)}
+                style={{
+                  padding: '10px',
+                  background: 'var(--pos-border-card)',
+                  color: 'var(--pos-txt-primary)',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontWeight: '800',
+                  fontSize: '0.80rem',
+                  cursor: 'pointer',
+                  marginTop: '2px'
+                }}
+              >
+                Tutup (Pilih Meja Lain)
               </button>
             </div>
           </div>

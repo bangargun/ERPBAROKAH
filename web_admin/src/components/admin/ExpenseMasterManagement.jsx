@@ -4,8 +4,7 @@ import * as XLSX from 'xlsx';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
 import { getApiUrl } from '../../utils/apiConfig';
-import DeleteGuardModal from './DeleteGuardModal';
-import { requestDelete } from '../../utils/deleteGuard';
+import { requestDelete, executePermanentDelete } from '../../utils/deleteGuard';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
 
 export default function ExpenseMasterManagement({ masterData, setMasterData, userSession, themeMode = 'dark' }) {
@@ -492,28 +491,16 @@ export default function ExpenseMasterManagement({ masterData, setMasterData, use
         const targetCode = String(targetAcc?.code || '');
         const targetName = String(targetAcc?.name || accName).trim();
 
-        const updatedDelExpenseIds = Array.from(new Set([
-          ...(masterData?.deletedExpenseIds || []),
-          targetId, targetId.toLowerCase(), targetCode, targetCode.toLowerCase(), targetName, targetName.toLowerCase()
-        ].filter(Boolean)));
+        executePermanentDelete({
+          key: 'expenseMaster',
+          id: targetId,
+          code: targetCode,
+          name: targetName,
+          masterData,
+          setMasterData
+        });
 
-        const updatedList = accountsList.filter(a => String(a.id) !== targetId && String(a.code || '') !== targetCode);
-        const updated = {
-          ...masterData,
-          _lastUpdated: Date.now(),
-          _lastMutated: Date.now(),
-          chartOfAccounts: updatedList,
-          expenseMaster: updatedList,
-          deletedExpenseIds: updatedDelExpenseIds
-        };
-        setMasterData(updated);
-        try { localStorage.setItem('mris_master_data', JSON.stringify(updated)); } catch(e) {}
-
-        fetch(getApiUrl('/api/master-data/delete-item'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: 'expenseMaster', id: targetId, code: targetCode, name: targetName })
-        }).catch(() => {});
+        alert(`Akun pengeluaran "${accName}" berhasil dihapus secara permanen dari Web Admin, POS Kasir, dan Database.`);
       }
     });
   };

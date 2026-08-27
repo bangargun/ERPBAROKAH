@@ -2,8 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Truck, Plus, Search, Edit3, Trash2, X, CheckCircle2, Store, PackageCheck, ArrowUpDown } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
-import { getApiUrl } from '../../utils/apiConfig';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
+import { executePermanentDelete } from '../../utils/deleteGuard';
 
 export default function SupplierManagement({ masterData, setMasterData, userSession, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
@@ -136,28 +136,16 @@ export default function SupplierManagement({ masterData, setMasterData, userSess
       const targetCode = String(targetSup?.code || '');
       const targetName = String(targetSup?.name || supName).trim();
 
-      const updatedDelSupplierIds = Array.from(new Set([
-        ...(masterData?.deletedSupplierIds || []),
-        targetId, targetId.toLowerCase(), targetCode, targetCode.toLowerCase(), targetName, targetName.toLowerCase()
-      ].filter(Boolean)));
+      executePermanentDelete({
+        key: 'suppliers',
+        id: targetId,
+        code: targetCode,
+        name: targetName,
+        masterData,
+        setMasterData
+      });
 
-      const updated = {
-        ...masterData,
-        _lastUpdated: Date.now(),
-        _lastMutated: Date.now(),
-        suppliers: (masterData?.suppliers || []).filter(s => String(s.id) !== targetId && String(s.code || '') !== targetCode),
-        deletedSupplierIds: updatedDelSupplierIds
-      };
-      setMasterData(updated);
-      try { localStorage.setItem('mris_master_data', JSON.stringify(updated)); } catch(e) {}
-
-      fetch(getApiUrl('/api/master-data/delete-item'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'suppliers', id: targetId, code: targetCode, name: targetName })
-      }).catch(() => {});
-
-      alert(`Supplier "${supName}" berhasil dihapus.`);
+      alert(`Supplier "${supName}" berhasil dihapus secara permanen dari Web Admin, POS Kasir, dan Database.`);
     }
   };
 

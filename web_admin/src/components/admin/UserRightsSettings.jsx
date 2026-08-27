@@ -4,6 +4,7 @@ import {
   RefreshCw, ShieldCheck, Save, Shield, RotateCcw, Check, Ban, Key
 } from 'lucide-react';
 import { getThemePalette } from '../../utils/themeUtils';
+import { executePermanentDelete } from '../../utils/deleteGuard';
 
 const API = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -285,61 +286,32 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
 
   // ─── DELETE USER ───
   const handleDeleteUser = async (type, user) => {
-    setDeleteConfirmId(null);
-    try {
+    if (window.confirm(`Hapus akun "${user.name || user.username}" secara permanen?`)) {
       setLoading(true);
       const key = type === 'web' ? 'webAdminAccounts' : 'mobileAccounts';
       const targetId = String(user.id);
       const targetUsername = String(user.username || user.name || '').toLowerCase().trim();
 
-      const prevDeletedUsers = masterData?.deletedUserIds || [];
-      const prevDeletedUsernames = masterData?.deletedUsernames || [];
+      try {
+        await executePermanentDelete({
+          key,
+          id: targetId,
+          username: targetUsername,
+          name: user.name,
+          masterData,
+          setMasterData
+        });
 
-      const updatedDeletedUsers = Array.from(new Set([...prevDeletedUsers, targetId]));
-      const updatedDeletedUsernames = targetUsername
-        ? Array.from(new Set([...prevDeletedUsernames, targetUsername]))
-        : prevDeletedUsernames;
-
-      fetch('/api/master-data/delete-item', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, id: user.id, username: targetUsername })
-      }).catch(() => {});
-
-      const filterOut = u => {
-        if (!u) return false;
-        const uId = String(u.id);
-        const uName = String(u.username || u.name || '').toLowerCase().trim();
-        if (uId === targetId) return false;
-        if (targetUsername && uName === targetUsername) return false;
-        return true;
-      };
-
-      const updatedWeb = (masterData?.webAdminAccounts || []).filter(filterOut);
-      const updatedMobile = (masterData?.mobileAccounts || []).filter(filterOut);
-
-      if (type === 'web') setWebUsers(updatedWeb);
-      else setMobileUsers(updatedMobile);
-
-      const updatedMaster = {
-        ...masterData,
-        _lastUpdated: Date.now(),
-        deletedUserIds: updatedDeletedUsers,
-        deletedUsernames: updatedDeletedUsernames,
-        webAdminAccounts: updatedWeb,
-        mobileAccounts: updatedMobile
-      };
-
-      setMasterData(updatedMaster);
-      fetch('/api/master-data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedMaster)
-      }).catch(() => {});
-    } catch (err) {
-      alert('Gagal menghapus: ' + err.message);
+        if (type === 'web') {
+          setWebUsers(prev => (prev || []).filter(u => String(u.id) !== targetId && String(u.username || '').toLowerCase() !== targetUsername));
+        } else {
+          setMobileUsers(prev => (prev || []).filter(u => String(u.id) !== targetId && String(u.username || '').toLowerCase() !== targetUsername));
+        }
+      } catch (err) {
+        alert('Gagal menghapus: ' + err.message);
+      }
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   // ─── SAVE MATRIX TO SERVER ───
