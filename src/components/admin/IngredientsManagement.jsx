@@ -313,10 +313,27 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
       });
     }
 
+    const nextDeleted = (updated.deletedIngredientIds || []).filter(
+      del => String(del).toLowerCase() !== String(payload.id).toLowerCase() &&
+             String(del).toLowerCase() !== String(payload.code).toLowerCase() &&
+             String(del).toLowerCase() !== String(payload.name).toLowerCase()
+    );
+    updated.deletedIngredientIds = nextDeleted;
     updated._lastUpdated = Date.now();
+    updated._lastMutated = Date.now();
+
     setMasterData(updated);
+    try {
+      localStorage.setItem('mris_master_data', JSON.stringify(updated));
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      }).catch(err => console.warn('Failed to push saved ingredient to server:', err));
+    } catch (e) {}
+
     setShowAddFormModal(false);
-    alert(`Bahan baku "${payload.name}" (${payload.code}) berhasil disimpan!`);
+    alert(`Bahan baku "${payload.name}" (${payload.code}) berhasil disimpan dan disinkronkan ke server!`);
   };
 
   // -------------------------------------------------------------

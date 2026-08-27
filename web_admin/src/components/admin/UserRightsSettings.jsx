@@ -241,13 +241,25 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
       let list = Array.isArray(masterData?.[key]) ? [...masterData[key]] : [];
       const targetUsername = String(form.username || '').toLowerCase().trim();
 
+      // Cari outlet_id dari nama outlet yang dipilih
+      const matchedOutlet = (masterData?.outlets || []).find(o => 
+        String(o.name || '').trim().toLowerCase() === String(form.outlet || '').trim().toLowerCase()
+      );
+      const resolvedOutletId = matchedOutlet ? matchedOutlet.id : (form.outlet === 'Semua Outlet (Central)' ? 'central' : (form.outlet_id || 'central'));
+
+      const userPayload = {
+        ...form,
+        outlet_id: resolvedOutletId,
+        _updatedAt: Date.now()
+      };
+
       let savedId;
       if (editingId) {
         savedId = String(editingId);
-        list = list.map(u => String(u.id) === String(editingId) ? { ...u, ...form, id: u.id } : u);
+        list = list.map(u => String(u.id) === String(editingId) ? { ...u, ...userPayload, id: u.id } : u);
       } else {
         savedId = String(Date.now());
-        list = [...list, { ...form, id: Number(savedId) }];
+        list = [...list, { ...userPayload, id: Number(savedId) }];
       }
 
       // Hapus tombstone yang memblokir username/ID baru ini dari deletedUsernames & deletedUserIds
@@ -263,7 +275,8 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
         [key]: list,
         deletedUsernames: updatedDeletedUsernames,
         deletedUserIds: updatedDeletedUserIds,
-        _lastUpdated: Date.now()
+        _lastUpdated: Date.now(),
+        _lastMutated: Date.now()
       };
 
       if (modalType === 'web') setWebUsers(list);
@@ -274,10 +287,20 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
         localStorage.setItem('mris_master_data', JSON.stringify(updated));
       } catch (e) {}
 
-      // Trigger automatic save to server & React state via App.jsx setMasterData
+      // Trigger update state React & dorong langsung ke backend server VPS
       setMasterData(updated);
+      try {
+        await fetch('/api/master-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updated)
+        });
+      } catch (err) {
+        console.warn('Direct user save push error:', err);
+      }
 
       setShowModal(false);
+      alert(`Akun "${userPayload.name}" (@${userPayload.username}) berhasil disimpan dan disinkronkan ke server!`);
     } catch (err) {
       alert('Gagal menyimpan: ' + err.message);
     }

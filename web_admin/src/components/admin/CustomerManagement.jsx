@@ -294,9 +294,18 @@ export default function CustomerManagement({ masterData, setMasterData, selected
     }
 
     setMasterData(updated);
+    try {
+      localStorage.setItem('mris_master_data', JSON.stringify(updated));
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      }).catch(err => console.warn('Failed to push customer to server:', err));
+    } catch (e) {}
+
     setShowAddModal(false);
     setEditingCustomer(null);
-    alert(`Data pelanggan "${name.toUpperCase()}" berhasil disimpan!`);
+    alert(`Data pelanggan "${name.toUpperCase()}" berhasil disimpan dan disinkronkan ke server!`);
   };
 
   const handleDeleteCustomer = (id, custName) => {

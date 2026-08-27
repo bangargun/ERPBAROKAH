@@ -613,7 +613,6 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       variants: variants,
       variantPrices: savedVariantPrices,
       branchVariantPrices: branchVariantPrices,
-      branch_variant_prices: branchVariantPrices,
       compositions: compositions,
       _updatedAt: nowTs,
       _lastMutated: nowTs,
@@ -630,15 +629,36 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       updatedProducts.unshift(productPayload);
     }
 
-    setMasterData({
+    const nextDeleted = (masterData?.deletedProductIds || []).filter(
+      del => String(del).toLowerCase() !== String(productPayload.id).toLowerCase() &&
+             String(del).toLowerCase() !== String(productPayload.sku).toLowerCase() &&
+             String(del).toLowerCase() !== String(productPayload.name).toLowerCase()
+    );
+
+    const nextMaster = {
       ...masterData,
       products: updatedProducts,
+      deletedProductIds: nextDeleted,
       _lastMutated: nowTs,
       _lastUpdated: nowTs
-    });
+    };
+
+    setMasterData(nextMaster);
+    try {
+      localStorage.setItem('mris_master_data', JSON.stringify(nextMaster));
+    } catch (e) {}
+
+    // Segera dorong ke server backend VPS agar POS Kasir langsung menerima produk baru
+    try {
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextMaster)
+      }).catch(err => console.warn('Failed to push saved product to server:', err));
+    } catch (e) {}
 
     setShowFormModal(false);
-    alert(`Menu "${productPayload.name}" berhasil disimpan!`);
+    alert(`Menu "${productPayload.name}" berhasil disimpan dan disinkronkan ke seluruh POS Kasir!`);
   };
 
   // -------------------------------------------------------------

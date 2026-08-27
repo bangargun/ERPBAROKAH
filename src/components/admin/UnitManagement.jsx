@@ -122,7 +122,18 @@ export default function UnitManagement({ masterData, setMasterData, userSession,
       updated.units.unshift(newUnit);
     }
 
+    updated._lastUpdated = Date.now();
+    updated._lastMutated = Date.now();
     setMasterData(updated);
+    try {
+      localStorage.setItem('mris_master_data', JSON.stringify(updated));
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      }).catch(err => console.warn('Failed to push units to server:', err));
+    } catch (e) {}
+
     setShowAddModal(false);
     setEditingUnit(null);
   };

@@ -280,20 +280,28 @@ export default function AndroidPosRegister({
     if (p.status === 'Inaktif' || p.status === 'Non-Aktif') return false;
 
     // 2. Outlet Isolation Check:
-    // Pastikan produk milik outlet ini berdasarkan outlet_id, selectedOutletIds, atau outlet_name
     const productOutletIdStr = String(p.outlet_id || '');
     const productOutletNameStr = String(p.outlet_name || p.branch_name || '').toLowerCase().trim();
     const selIds = (Array.isArray(p.selectedOutletIds) ? p.selectedOutletIds : (Array.isArray(p.selected_outlet_ids) ? p.selected_outlet_ids : [])).map(x => String(x));
     const hasExplicitOutlets = selIds.length > 0;
     const inSelOutlets = selIds.includes(currentOutletIdStr);
 
-    const isDirectMatch = productOutletIdStr === currentOutletIdStr;
-    const isNameMatch = productOutletNameStr && currentOutletNameStr && (productOutletNameStr === currentOutletNameStr || productOutletNameStr.includes(currentOutletNameStr) || currentOutletNameStr.includes(productOutletNameStr));
-    const isGlobal = (!productOutletIdStr || productOutletIdStr === 'Semua Outlet' || productOutletIdStr === 'Semua Outlet (Central)' || productOutletIdStr === 'ALL') && !hasExplicitOutlets;
+    const isDirectMatch = productOutletIdStr && (productOutletIdStr === currentOutletIdStr);
+    const isNameMatch = productOutletNameStr && currentOutletNameStr && (
+      productOutletNameStr === currentOutletNameStr ||
+      productOutletNameStr.includes(currentOutletNameStr) ||
+      currentOutletNameStr.includes(productOutletNameStr)
+    );
+    const isGlobal = !productOutletIdStr ||
+      productOutletIdStr === 'Semua Outlet' ||
+      productOutletIdStr === 'Semua Outlet (Central)' ||
+      productOutletIdStr === 'ALL' ||
+      productOutletIdStr === 'central' ||
+      productOutletIdStr === '0';
 
     // Jika produk memiliki daftar outlet yang dicentang:
     if (hasExplicitOutlets) {
-      if (!inSelOutlets && !isDirectMatch && !isNameMatch) {
+      if (!inSelOutlets && !isDirectMatch && !isNameMatch && !isGlobal) {
         return false;
       }
     } else if (!isGlobal && !isDirectMatch && !isNameMatch) {
@@ -1836,6 +1844,23 @@ export default function AndroidPosRegister({
             const ev = JSON.parse(e.data);
             if (ev.type === 'TABLE_ORDER_UPDATE' || ev.type === 'TX_CHECKOUT') {
               syncTableOrdersFromServer();
+            } else if (ev.type === 'MASTER_DATA_UPDATED') {
+              // Real-time Push: Web Admin baru saja mengupdate Menu Katalog / Data Master
+              fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
+                .then(res => res.ok ? res.json() : null)
+                .then(serverMaster => {
+                  if (!serverMaster || typeof serverMaster !== 'object') return;
+                  setMasterData(prev => ({
+                    ...prev,
+                    ...serverMaster,
+                    products: Array.isArray(serverMaster.products) && serverMaster.products.length > 0 ? serverMaster.products : (prev?.products || []),
+                    categories: Array.isArray(serverMaster.categories) && serverMaster.categories.length > 0 ? serverMaster.categories : (prev?.categories || []),
+                    ingredients: Array.isArray(serverMaster.ingredients) && serverMaster.ingredients.length > 0 ? serverMaster.ingredients : (prev?.ingredients || []),
+                    outlets: Array.isArray(serverMaster.outlets) && serverMaster.outlets.length > 0 ? serverMaster.outlets : (prev?.outlets || []),
+                    _lastUpdated: Math.max(prev?._lastUpdated || 0, serverMaster._lastUpdated || 0, Date.now())
+                  }));
+                })
+                .catch(() => {});
             } else if (ev.type === 'DATA_DELETED') {
               const delData = ev.data || {};
               const delId = String(delData.id || '');

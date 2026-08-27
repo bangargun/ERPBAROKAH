@@ -817,12 +817,11 @@ const getMasterDataFromMySQL = async () => {
             } catch (e) {}
           }
 
-          // Jika blob sudah punya transaksi ini, tetapi blob belum memiliki item rincian atau masih "Menu Paket Restoran", update items-nya dari MySQL
+          // Jika blob sudah punya transaksi ini, update items-nya dari MySQL jika MySQL punya items_json lengkap
           if (txMap.has(k)) {
             const existing = txMap.get(k);
-            const hasRealItems = Array.isArray(existing.items) && existing.items.length > 0 &&
-              !existing.items.every(it => (it.name || '').includes('Menu Paket Restoran') || it.name === 'Menu');
-            if (!hasRealItems && resolvedItems.length > 0) {
+            const hasRealItems = Array.isArray(existing.items) && existing.items.length > 0;
+            if ((!hasRealItems || existing.items.some(it => (it.name || '').includes('Menu Paket Restoran'))) && resolvedItems.length > 0) {
               existing.items = resolvedItems;
               txMap.set(k, existing);
             }
@@ -864,7 +863,7 @@ const getMasterDataFromMySQL = async () => {
               if (resolvedItems.length > 0) return resolvedItems;
               const itemTitle = (r.notes && r.notes !== '-' && !r.notes.startsWith('Pesanan Gantung') && !r.notes.startsWith('Informasi') && !r.notes.startsWith('Dine In') && !r.notes.startsWith('Take Away'))
                 ? r.notes
-                : (r.branch_name ? `Pesanan Menu (${r.branch_name})` : 'Menu Restoran');
+                : (r.receipt_no || r.id || 'Transaksi Penjualan');
               return [{ name: itemTitle, qty: 1, price_unit: Number(r.amount || 0), amount: Number(r.amount || 0) }];
             })()
           };
@@ -3817,6 +3816,13 @@ app.post('/api/master-data', async (req, res) => {
     // Sync ke tabel-tabel relasional MySQL (sales_transactions, shift_closings, stock_movement, dll)
     await syncToMySQL(mergedData);
 
+    // Broadcast SSE ke seluruh tablet POS Kasir yang terhubung agar menu katalog & data master update instan!
+    try {
+      broadcastPosEvent('all', {
+        type: 'MASTER_DATA_UPDATED',
+        _lastUpdated: mergedData._lastUpdated
+      });
+    } catch (sseErr) {}
 
     return res.json({
       success: true,

@@ -466,11 +466,23 @@ export default function ExpenseMasterManagement({ masterData, setMasterData, use
       updatedList.unshift(newAcc);
     }
 
-    setMasterData({
+    const updated = {
       ...masterData,
+      _lastUpdated: Date.now(),
+      _lastMutated: Date.now(),
       chartOfAccounts: updatedList,
       expenseMaster: updatedList
-    });
+    };
+
+    setMasterData(updated);
+    try {
+      localStorage.setItem('mris_master_data', JSON.stringify(updated));
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      }).catch(err => console.warn('Failed to push expenseMaster to server:', err));
+    } catch (e) {}
 
     setShowAddModal(false);
   };

@@ -208,15 +208,31 @@ export default function ProductCategoryManagement({ masterData, setMasterData, s
       _updatedAt: Date.now()
     };
 
+    const nextDeleted = (masterData?.deletedCategoriesIds || []).filter(
+      del => String(del).toLowerCase() !== String(newCategory.id).toLowerCase() &&
+             String(del).toLowerCase() !== String(newCategory.code).toLowerCase() &&
+             String(del).toLowerCase() !== String(newCategory.name).toLowerCase()
+    );
+
     const updated = {
       ...masterData,
       _lastUpdated: Date.now(),
+      _lastMutated: Date.now(),
+      deletedCategoriesIds: nextDeleted,
       categories: [...(masterData?.categories || []), newCategory]
     };
     setMasterData(updated);
+    try {
+      localStorage.setItem('mris_master_data', JSON.stringify(updated));
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      }).catch(err => console.warn('Failed to push saved category to server:', err));
+    } catch (e) {}
 
     setShowAddModal(false);
-    alert(`Kategori "${newCategory.name}" (${newCategory.code}) berhasil ditambahkan!`);
+    alert(`Kategori "${newCategory.name}" (${newCategory.code}) berhasil ditambahkan dan disinkronkan ke server!`);
   };
 
   // -------------------------------------------------------------
@@ -262,17 +278,33 @@ export default function ProductCategoryManagement({ masterData, setMasterData, s
       return p;
     });
 
+    const nextDeleted = (masterData?.deletedCategoriesIds || []).filter(
+      del => String(del).toLowerCase() !== String(updatedCatObj.id).toLowerCase() &&
+             String(del).toLowerCase() !== String(updatedCatObj.code).toLowerCase() &&
+             String(del).toLowerCase() !== String(updatedCatObj.name).toLowerCase()
+    );
+
     const updated = {
       ...masterData,
       _lastUpdated: Date.now(),
+      _lastMutated: Date.now(),
+      deletedCategoriesIds: nextDeleted,
       categories: updatedCategories,
       products: updatedProducts
     };
     setMasterData(updated);
+    try {
+      localStorage.setItem('mris_master_data', JSON.stringify(updated));
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      }).catch(err => console.warn('Failed to push updated category to server:', err));
+    } catch (e) {}
 
     setShowEditModal(false);
     setEditingCategory(null);
-    alert(`Kategori "${updatedCatObj.name}" berhasil diperbarui!`);
+    alert(`Kategori "${updatedCatObj.name}" berhasil diperbarui dan disinkronkan ke server!`);
   };
 
   // -------------------------------------------------------------

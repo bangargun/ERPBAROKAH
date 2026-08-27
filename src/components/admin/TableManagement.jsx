@@ -82,6 +82,15 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
     }
 
     setMasterData(updated);
+    try {
+      localStorage.setItem('mris_master_data', JSON.stringify(updated));
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      }).catch(err => console.warn('Failed to push tables to server:', err));
+    } catch (e) {}
+
     setShowAddModal(false);
     setEditingTableGroup(null);
   };
