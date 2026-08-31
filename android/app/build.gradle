@@ -27,12 +27,12 @@ android {
 
     signingConfigs {
         release {
-            def storeFile = keystoreProperties['STORE_FILE']
-            def storePath = storeFile ? file("${project.projectDir}/${storeFile}") : null
-            if (storePath && storePath.exists()) {
+            def ksFileName = keystoreProperties['STORE_FILE']
+            def ksFilePath = ksFileName ? file("${project.projectDir}/${ksFileName}") : null
+            if (ksFilePath && ksFilePath.exists()) {
                 keyAlias keystoreProperties['KEY_ALIAS'] ?: 'mris_pos_release'
                 keyPassword keystoreProperties['KEY_PASSWORD'] ?: ''
-                storeFile storePath
+                storeFile ksFilePath
                 storePassword keystoreProperties['STORE_PASSWORD'] ?: ''
             } else {
                 // Fallback ke debug untuk development (bukan produksi)
