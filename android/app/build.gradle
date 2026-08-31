@@ -7,8 +7,8 @@ android {
         applicationId "com.mris.finance"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 68
-        versionName "4.4.5"
+        versionCode 69
+        versionName "4.5.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,9 +16,37 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+
+    // ─── RELEASE SIGNING CONFIG ─────────────────────────────────────────────
+    // Baca dari android/local.properties (TIDAK di-commit ke git)
+    def keystorePropertiesFile = rootProject.file("local.properties")
+    def keystoreProperties = new Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    }
+
+    signingConfigs {
+        release {
+            def storeFile = keystoreProperties['STORE_FILE']
+            def storePath = storeFile ? file("${project.projectDir}/${storeFile}") : null
+            if (storePath && storePath.exists()) {
+                keyAlias keystoreProperties['KEY_ALIAS'] ?: 'mris_pos_release'
+                keyPassword keystoreProperties['KEY_PASSWORD'] ?: ''
+                storeFile storePath
+                storePassword keystoreProperties['STORE_PASSWORD'] ?: ''
+            } else {
+                // Fallback ke debug untuk development (bukan produksi)
+                keyAlias signingConfigs.debug.keyAlias
+                keyPassword signingConfigs.debug.keyPassword
+                storeFile signingConfigs.debug.storeFile
+                storePassword signingConfigs.debug.storePassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release   // ← FIXED: release keystore
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

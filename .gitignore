@@ -96,3 +96,10 @@ bin/
 **/*.apk
 local_production_backup.json
 mris_finance.json
+
+# ─── ANDROID KEYSTORE (JANGAN COMMIT KE GIT) ────────────────────────────────
+*.keystore
+*.jks
+android/app/*.keystore
+android/app/*.jks
+android/local.properties
