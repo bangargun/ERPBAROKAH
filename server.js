@@ -3013,6 +3013,13 @@ const sanitizeMasterDataPayload = (data) => {
     clean.products = Array.from(prodMap.values());
   }
 
+  // ─── OPTIMASI NETWORK: Hilangkan duplikasi 3x array transaksi di HTTP response ──
+  // salesTransactions adalah array master utama yang lengkap.
+  if (Array.isArray(clean.salesTransactions)) {
+    if (clean.transactions) delete clean.transactions;
+    if (clean.outletTransactions) delete clean.outletTransactions;
+  }
+
   return clean;
 };
 
