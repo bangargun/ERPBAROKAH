@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Users, Plus, Search, Edit3, Trash2, X, CheckCircle2,
   MessageSquare, Award, Store, Calendar, DollarSign, ArrowUpDown,
@@ -14,6 +14,9 @@ export default function CustomerManagement({ masterData, setMasterData, selected
   const T = getThemePalette(themeMode);
   const allowDelete = canDeleteModule(userSession, 'masterData', masterData?.permissionMatrix);
   const allowEdit = canEditModule(userSession, 'masterData', masterData?.permissionMatrix);
+
+  // Outlets List
+  const allOutlets = useMemo(() => masterData?.outlets || [], [masterData?.outlets]);
 
   // Filter & Search States
   const [searchTerm, setSearchTerm] = useState('');
@@ -47,9 +50,6 @@ export default function CustomerManagement({ masterData, setMasterData, selected
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [outletId, setOutletId] = useState('ALL');
-
-  // Outlets List
-  const allOutlets = useMemo(() => masterData?.outlets || [], [masterData?.outlets]);
 
   // Helper to format Rupiah
   const formatRupiah = (val) => {

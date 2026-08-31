@@ -433,111 +433,247 @@ export default function AdjustmentsManagementPage({
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* 2. SUB-TAB PILL SWITCHER                                      */}
+      {/* 2. SUB-TAB CIRCULAR ICON GRID & DYNAMIC CONTEXT CARD          */}
       {/* ------------------------------------------------------------- */}
       <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '12px'
+        background: T.cardBg,
+        borderRadius: '16px',
+        border: `1px solid ${T.border}`,
+        padding: '14px 18px',
+        boxShadow: T.shadowSm
       }}>
-        {/* Navigation Pills */}
         <div style={{
-          display: 'inline-flex',
-          background: T.cardBg2,
-          padding: '4px',
-          borderRadius: '12px',
-          border: `1px solid ${T.borderStrong}`,
-          gap: '4px'
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '12px',
+          alignItems: 'start'
         }}>
-          <button
-            type="button"
-            onClick={() => { setActiveTab('stock'); setCurrentPage(1); }}
-            style={{
-              padding: '8px 18px',
-              borderRadius: '9px',
-              border: 'none',
-              background: activeTab === 'stock' ? T.primary : 'transparent',
-              color: activeTab === 'stock' ? T.txtInverse : T.txtSecondary,
-              fontWeight: '800',
-              fontSize: '0.78rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              boxShadow: activeTab === 'stock' ? T.shadowSm : 'none'
-            }}
-          >
-            <Package size={16} />
-            <span>1. Penyesuaian Stok Bahan Baku</span>
-            <span style={{
-              padding: '1px 6px',
-              borderRadius: '10px',
-              fontSize: '0.66rem',
-              background: activeTab === 'stock' ? 'rgba(0,0,0,0.2)' : T.inputBg,
-              color: activeTab === 'stock' ? T.txtInverse : T.txtPrimary
-            }}>
-              {stockAdjustmentsList.length}
-            </span>
-          </button>
+          {[
+            {
+              id: 'stock',
+              label: '1. Penyesuaian Stok Bahan Baku',
+              shortLabel: 'Koreksi Stok',
+              icon: Package,
+              count: stockAdjustmentsList.length,
+              badge: 'Stock Variance',
+              desc: 'Koreksi kuantitas fisik bahan baku dapur (tambah/kurang) akibat selisih timbangan, basi, atau barang kedaluwarsa.'
+            },
+            {
+              id: 'cash',
+              label: '2. Penyesuaian Kas & Kas Kecil',
+              shortLabel: 'Koreksi Kas',
+              icon: Wallet,
+              count: cashAdjustmentsList.length,
+              badge: 'Cash Drawer Variance',
+              desc: 'Koreksi selisih saldo uang kas di laci kasir (kurang/lebih) saat penutupan shift dan penyesuaian kas kecil outlet.'
+            }
+          ].map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            const isLight = themeMode === 'calm_sage' || themeMode === 'soft_blue' || themeMode === 'light';
 
-          <button
-            type="button"
-            onClick={() => { setActiveTab('cash'); setCurrentPage(1); }}
-            style={{
-              padding: '8px 18px',
-              borderRadius: '9px',
-              border: 'none',
-              background: activeTab === 'cash' ? T.primary : 'transparent',
-              color: activeTab === 'cash' ? T.txtInverse : T.txtSecondary,
-              fontWeight: '800',
-              fontSize: '0.78rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              boxShadow: activeTab === 'cash' ? T.shadowSm : 'none'
-            }}
-          >
-            <Wallet size={16} />
-            <span>2. Penyesuaian Kas &amp; Kas Kecil</span>
-            <span style={{
-              padding: '1px 6px',
-              borderRadius: '10px',
-              fontSize: '0.66rem',
-              background: activeTab === 'cash' ? 'rgba(0,0,0,0.2)' : T.inputBg,
-              color: activeTab === 'cash' ? T.txtInverse : T.txtPrimary
-            }}>
-              {cashAdjustmentsList.length}
-            </span>
-          </button>
+            return (
+              <div
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); setCurrentPage(1); }}
+                title={`${tab.label} (${tab.count} data) — ${tab.desc}`}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '8px 6px 6px 6px',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  background: isActive ? (isLight ? 'rgba(45, 122, 91, 0.08)' : 'rgba(45, 122, 91, 0.18)') : 'transparent',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative'
+                }}
+              >
+                {/* Circular Icon Badge */}
+                <div style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: isActive
+                    ? T.primaryBtn
+                    : (isLight ? '#eef6f2' : '#14291f'),
+                  border: isActive
+                    ? `2px solid ${T.primary}`
+                    : `1.5px solid ${isLight ? '#c8ded1' : '#234a38'}`,
+                  color: isActive ? '#ffffff' : T.primary,
+                  boxShadow: isActive
+                    ? (T.primaryBtnShadow ? `0 6px 16px ${T.primaryBtnShadow}` : '0 6px 16px rgba(45, 122, 91, 0.40)')
+                    : 'none',
+                  transform: isActive ? 'scale(1.06)' : 'none',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative'
+                }}>
+                  <Icon size={20} />
+                  <span style={{
+                    position: 'absolute',
+                    top: '-4px',
+                    right: '-4px',
+                    fontSize: '0.60rem',
+                    fontWeight: '900',
+                    padding: '1px 5px',
+                    borderRadius: '10px',
+                    background: isActive ? '#ffffff' : T.primary,
+                    color: isActive ? T.primary : '#ffffff',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                    border: `1px solid ${isActive ? T.primary : '#ffffff'}`
+                  }}>
+                    {tab.count}
+                  </span>
+                </div>
+
+                {/* Text Label */}
+                <span style={{
+                  fontSize: '0.74rem',
+                  fontWeight: isActive ? '900' : '700',
+                  color: isActive ? T.primary : T.txtPrimary,
+                  textAlign: 'center',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '100%',
+                  letterSpacing: '-0.01em'
+                }}>
+                  {tab.label}
+                </span>
+
+                {/* Active Indicator Underline */}
+                {isActive && (
+                  <div style={{
+                    width: '18px',
+                    height: '3px',
+                    borderRadius: '2px',
+                    background: T.primary,
+                    marginTop: '-4px'
+                  }} />
+                )}
+              </div>
+            );
+          })}
         </div>
+      </div>
 
-        {/* Filter Controls (Search) */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+      {/* DYNAMIC ACTIVE CONTEXT CARD (Penjelasan Lengkap Penyesuaian Saat Diklik) */}
+      {(() => {
+        const adjTabsMeta = [
+          {
+            id: 'stock',
+            label: '1. Penyesuaian Stok Bahan Baku',
+            shortLabel: 'Koreksi Stok',
+            icon: Package,
+            count: stockAdjustmentsList.length,
+            badge: 'Stock Variance',
+            desc: 'Koreksi kuantitas fisik bahan baku dapur (tambah/kurang) akibat selisih timbangan, basi, atau barang kedaluwarsa.'
+          },
+          {
+            id: 'cash',
+            label: '2. Penyesuaian Kas & Kas Kecil',
+            shortLabel: 'Koreksi Kas',
+            icon: Wallet,
+            count: cashAdjustmentsList.length,
+            badge: 'Cash Drawer Variance',
+            desc: 'Koreksi selisih saldo uang kas di laci kasir (kurang/lebih) saat penutupan shift dan penyesuaian kas kecil outlet.'
+          }
+        ];
+        const currentTabInfo = adjTabsMeta.find(t => t.id === activeTab) || adjTabsMeta[0];
+        const CurrentIcon = currentTabInfo.icon;
+        const isLight = themeMode === 'calm_sage' || themeMode === 'soft_blue' || themeMode === 'light';
 
-          {/* Search Bar */}
-          <div style={{ position: 'relative', width: '220px' }}>
-            <Search size={14} color={T.txtMuted} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
-            <input
-              type="text"
-              placeholder="Cari transaksi penyesuaian..."
-              value={searchTerm}
-              onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              style={{
-                width: '100%',
-                padding: '6px 10px 6px 30px',
-                background: T.inputBg,
-                border: `1px solid ${T.borderStrong}`,
-                borderRadius: '10px',
-                color: T.txtPrimary,
-                fontSize: '0.74rem'
-              }}
-            />
+        return (
+          <div className="glass-card animate-fade-in" style={{
+            background: T.cardBg,
+            border: `1px solid ${T.border}`,
+            borderLeft: `5px solid ${T.primary}`,
+            borderRadius: '14px',
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '14px',
+            boxShadow: T.shadowSm
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: '280px' }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '12px',
+                background: T.primaryBtn,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                boxShadow: T.primaryBtnShadow ? `0 4px 14px ${T.primaryBtnShadow}` : '0 4px 14px rgba(45, 122, 91, 0.35)',
+                flexShrink: 0
+              }}>
+                <CurrentIcon size={20} />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h3 style={{ fontSize: '0.92rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
+                    {currentTabInfo.label}
+                  </h3>
+                  <span style={{
+                    fontSize: '0.62rem',
+                    fontWeight: '800',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: isLight ? 'rgba(45, 122, 91, 0.10)' : 'rgba(45, 122, 91, 0.22)',
+                    color: T.primary,
+                    border: `1px solid ${isLight ? '#c8ded1' : '#234a38'}`,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em'
+                  }}>
+                    {currentTabInfo.badge}
+                  </span>
+                  <span style={{ fontSize: '0.62rem', fontWeight: '700', color: T.txtMuted }}>
+                    • Total: <strong style={{ color: T.primary }}>{currentTabInfo.count} Catatan</strong>
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.76rem', color: T.txtSecondary, margin: 0, fontWeight: '600', lineHeight: '1.35' }}>
+                  {currentTabInfo.desc}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              <span style={{ fontSize: '0.70rem', color: T.txtMuted, fontWeight: '700', background: T.controlBg, padding: '5px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                🔧 Penyesuaian: <strong style={{ color: T.primary }}>{currentTabInfo.shortLabel}</strong>
+              </span>
+            </div>
           </div>
+        );
+      })()}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        {/* Search Bar */}
+        <div style={{ position: 'relative', width: '220px' }}>
+          <Search size={14} color={T.txtMuted} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+          <input
+            type="text"
+            placeholder="Cari transaksi penyesuaian..."
+            value={searchTerm}
+            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            style={{
+              width: '100%',
+              padding: '6px 10px 6px 30px',
+              background: T.inputBg,
+              border: `1px solid ${T.borderStrong}`,
+              borderRadius: '10px',
+              color: T.txtPrimary,
+              fontSize: '0.74rem'
+            }}
+          />
         </div>
       </div>
 

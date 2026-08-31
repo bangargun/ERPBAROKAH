@@ -2387,8 +2387,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
           
-          {/* Double calendar selector + Outlet multi-select (Dark Themed) */}
+          {/* Double calendar selector + Outlet multi-select (Theme Adaptive) */}
           <DoubleCalendarPicker
+            themeMode={themeMode}
             startDate={logStartDate}
             endDate={logEndDate}
             datePreset={logDatePreset}
@@ -2522,26 +2523,80 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         )}
       </div>
 
-      {/* Sub-Tab Navigation Bar — Enterprise Modern Segmented Bar */}
+      {/* Sub-Tab Navigation Bar — SuperApp Circular Icon Grid (GoPay / Modern App Style) */}
       <div style={{
-        background: themeMode === 'soft_blue' ? 'rgba(234, 244, 255, 0.75)' : 'rgba(15, 23, 42, 0.65)',
-        padding: '6px',
-        borderRadius: '14px',
-        border: `1px solid ${themeMode === 'soft_blue' ? 'rgba(176, 204, 236, 0.6)' : 'rgba(51, 65, 85, 0.6)'}`,
-        boxShadow: themeMode === 'soft_blue' ? 'inset 0 1px 3px rgba(0,0,0,0.04)' : 'inset 0 1px 3px rgba(0,0,0,0.3)'
+        background: T.cardBg,
+        borderRadius: '16px',
+        border: `1px solid ${T.border}`,
+        padding: '14px 18px',
+        boxShadow: T.shadowSm
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+          gap: '10px',
+          alignItems: 'start'
+        }}>
           {[
-            { id: 'stok_masuk',        label: 'Stok Masuk',                         color: '#38bdf8' },
-            { id: 'stok_keluar',       label: 'Stok Keluar',                        color: '#f87171' },
-            { id: 'transfer_stok',     label: 'Transfer Stok',                      color: '#fbbf24' },
-            { id: 'stok_rusak',        label: 'Stok Rusak (Waste)',                 color: '#fb7185' },
-            { id: 'stok_opname_system',label: 'Opname by Sistem (Auto Mutasi)',   color: '#818cf8' },
-            { id: 'stok_opname',       label: 'Audit Opname Fisik (POS Kasir)',     color: '#34d399' }
+            {
+              id: 'stok_masuk',
+              label: '1. Stok Masuk',
+              shortLabel: 'Stok Masuk',
+              icon: ArrowDownRight,
+              badge: 'Inflow / Pembelian',
+              desc: 'Pencatatan barang masuk dari supplier, invoice belanja bahan baku, total harga pembelian, dan penambahan kuantitas stok.',
+              color: '#38bdf8'
+            },
+            {
+              id: 'stok_keluar',
+              label: '2. Stok Keluar',
+              shortLabel: 'Stok Keluar',
+              icon: ArrowUpRight,
+              badge: 'Outflow / POS',
+              desc: 'Pemotongan stok bahan baku otomatis berdasarkan resep menu yang terjual di kasir Luna POS beserta nilai HPP keluar.',
+              color: '#f87171'
+            },
+            {
+              id: 'transfer_stok',
+              label: '3. Transfer Stok',
+              shortLabel: 'Transfer Stok',
+              icon: Truck,
+              badge: 'Inter-Branch',
+              desc: 'Pengiriman mutasi bahan baku antarcabang restoran (outlet pengirim vs penerima) dan verifikasi status approval.',
+              color: '#fbbf24'
+            },
+            {
+              id: 'stok_rusak',
+              label: '4. Stok Rusak (Waste)',
+              shortLabel: 'Stok Rusak',
+              icon: Trash2,
+              badge: 'Waste / Loss',
+              desc: 'Log bahan baku rusak, basi, kedaluwarsa, atau tumpah (waste/spoilage) beserta estimasi kerugian biaya operasional.',
+              color: '#fb7185'
+            },
+            {
+              id: 'stok_opname_system',
+              label: '5. Opname by Sistem',
+              shortLabel: 'Opname Sistem',
+              icon: Cpu,
+              badge: 'Auto Mutasi',
+              desc: 'Rekapitulasi kalkulasi saldo stok akhir sistem otomatis (Stok Awal + Masuk - Keluar ± Transfer - Rusak) per outlet.',
+              color: '#818cf8'
+            },
+            {
+              id: 'stok_opname',
+              label: '6. Audit Opname Fisik',
+              shortLabel: 'Audit Fisik',
+              icon: CheckCircle2,
+              badge: 'POS Physical Audit',
+              desc: 'Pencocokan fisik riil stok gudang vs catatan sistem dari POS kasir, perhitungan selisih (variance), dan denda kehilangan.',
+              color: '#34d399'
+            }
           ].map(tab => {
+            const Icon = tab.icon;
             const isActive = activeSubTab === tab.id;
             return (
-              <button
+              <div
                 key={tab.id}
                 onClick={() => {
                   if (tab.id !== activeSubTab) {
@@ -2552,42 +2607,201 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   setActiveSubTab(tab.id);
                   setLogShowColumnDropdown(false);
                 }}
+                title={`${tab.label} — ${tab.desc}`}
                 style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '8px 6px 6px 6px',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  background: isActive ? (themeMode === 'calm_sage' || themeMode === 'light' ? 'rgba(45, 122, 91, 0.08)' : 'rgba(45, 122, 91, 0.18)') : 'transparent',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative'
+                }}
+              >
+                {/* Circular Icon Badge */}
+                <div style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px',
-                  padding: '9px 12px',
-                  borderRadius: '10px',
-                  border: isActive ? `1px solid ${tab.color}80` : '1px solid transparent',
                   background: isActive
-                    ? (themeMode === 'soft_blue' ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : `linear-gradient(135deg, ${tab.color}25 0%, rgba(15, 23, 42, 0.95) 100%)`)
-                    : (themeMode === 'soft_blue' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(30, 41, 59, 0.4)'),
-                  color: isActive ? (themeMode === 'soft_blue' ? '#ffffff' : tab.color) : (themeMode === 'soft_blue' ? '#1e4a7c' : '#94a3b8'),
-                  fontWeight: isActive ? '900' : '700',
-                  fontSize: '0.74rem',
-                  letterSpacing: '-0.01em',
-                  cursor: 'pointer',
-                  transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
+                    ? T.primaryBtn
+                    : (themeMode === 'calm_sage' || themeMode === 'light' ? '#eef6f2' : '#14291f'),
+                  border: isActive
+                    ? `2px solid ${T.primary}`
+                    : `1.5px solid ${themeMode === 'calm_sage' || themeMode === 'light' ? '#c8ded1' : '#234a38'}`,
+                  color: isActive ? '#ffffff' : T.primary,
                   boxShadow: isActive
-                    ? (themeMode === 'soft_blue' ? '0 4px 14px rgba(13, 82, 149, 0.3)' : `0 4px 14px ${tab.color}30`)
+                    ? (T.primaryBtnShadow ? `0 6px 16px ${T.primaryBtnShadow}` : '0 6px 16px rgba(45, 122, 91, 0.40)')
                     : 'none',
-                  transform: isActive ? 'scale(1.01)' : 'none'
-                }}
-              >
-                <div style={{
-                  width: '7px',
-                  height: '7px',
-                  borderRadius: '50%',
-                  background: isActive ? (themeMode === 'soft_blue' ? '#ffffff' : tab.color) : tab.color,
-                  boxShadow: isActive ? `0 0 8px ${tab.color}` : 'none'
-                }} />
-                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.label}</span>
-              </button>
+                  transform: isActive ? 'scale(1.06)' : 'none',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}>
+                  <Icon size={20} />
+                </div>
+
+                {/* Text Label */}
+                <span style={{
+                  fontSize: '0.74rem',
+                  fontWeight: isActive ? '900' : '700',
+                  color: isActive ? T.primary : T.txtPrimary,
+                  textAlign: 'center',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '100%',
+                  letterSpacing: '-0.01em'
+                }}>
+                  {tab.shortLabel}
+                </span>
+
+                {/* Active Indicator Underline */}
+                {isActive && (
+                  <div style={{
+                    width: '18px',
+                    height: '3px',
+                    borderRadius: '2px',
+                    background: T.primary,
+                    marginTop: '-4px'
+                  }} />
+                )}
+              </div>
             );
           })}
         </div>
       </div>
+
+      {/* DYNAMIC ACTIVE CONTEXT CARD (Penjelasan Lengkap Sub-Tab Logistik Saat Diklik) */}
+      {(() => {
+        const logisticsTabsMeta = [
+          {
+            id: 'stok_masuk',
+            label: '1. Stok Masuk',
+            shortLabel: 'Stok Masuk',
+            icon: ArrowDownRight,
+            badge: 'Inflow / Pembelian',
+            desc: 'Pencatatan barang masuk dari supplier, invoice belanja bahan baku, total harga pembelian, dan penambahan kuantitas stok.',
+            color: '#38bdf8'
+          },
+          {
+            id: 'stok_keluar',
+            label: '2. Stok Keluar',
+            shortLabel: 'Stok Keluar',
+            icon: ArrowUpRight,
+            badge: 'Outflow / POS',
+            desc: 'Pemotongan stok bahan baku otomatis berdasarkan resep menu yang terjual di kasir Luna POS beserta nilai HPP keluar.',
+            color: '#f87171'
+          },
+          {
+            id: 'transfer_stok',
+            label: '3. Transfer Stok',
+            shortLabel: 'Transfer Stok',
+            icon: Truck,
+            badge: 'Inter-Branch',
+            desc: 'Pengiriman mutasi bahan baku antarcabang restoran (outlet pengirim vs penerima) dan verifikasi status approval.',
+            color: '#fbbf24'
+          },
+          {
+            id: 'stok_rusak',
+            label: '4. Stok Rusak (Waste)',
+            shortLabel: 'Stok Rusak',
+            icon: Trash2,
+            badge: 'Waste / Loss',
+            desc: 'Log bahan baku rusak, basi, kedaluwarsa, atau tumpah (waste/spoilage) beserta estimasi kerugian biaya operasional.',
+            color: '#fb7185'
+          },
+          {
+            id: 'stok_opname_system',
+            label: '5. Opname by Sistem',
+            shortLabel: 'Opname Sistem',
+            icon: Cpu,
+            badge: 'Auto Mutasi',
+            desc: 'Rekapitulasi kalkulasi saldo stok akhir sistem otomatis (Stok Awal + Masuk - Keluar ± Transfer - Rusak) per outlet.',
+            color: '#818cf8'
+          },
+          {
+            id: 'stok_opname',
+            label: '6. Audit Opname Fisik',
+            shortLabel: 'Audit Fisik',
+            icon: CheckCircle2,
+            badge: 'POS Physical Audit',
+            desc: 'Pencocokan fisik riil stok gudang vs catatan sistem dari POS kasir, perhitungan selisih (variance), dan denda kehilangan.',
+            color: '#34d399'
+          }
+        ];
+        const currentTabInfo = logisticsTabsMeta.find(t => t.id === activeSubTab) || logisticsTabsMeta[0];
+        const CurrentIcon = currentTabInfo.icon;
+        const isLight = themeMode === 'calm_sage' || themeMode === 'light';
+
+        return (
+          <div className="glass-card animate-fade-in" style={{
+            background: T.cardBg,
+            border: `1px solid ${T.border}`,
+            borderLeft: `5px solid ${T.primary}`,
+            borderRadius: '14px',
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '14px',
+            boxShadow: T.shadowSm
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: '280px' }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '12px',
+                background: T.primaryBtn,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                boxShadow: T.primaryBtnShadow ? `0 4px 14px ${T.primaryBtnShadow}` : '0 4px 14px rgba(45, 122, 91, 0.35)',
+                flexShrink: 0
+              }}>
+                <CurrentIcon size={20} />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h3 style={{ fontSize: '0.92rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
+                    {currentTabInfo.label}
+                  </h3>
+                  <span style={{
+                    fontSize: '0.62rem',
+                    fontWeight: '800',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: isLight ? 'rgba(45, 122, 91, 0.10)' : 'rgba(45, 122, 91, 0.22)',
+                    color: T.primary,
+                    border: `1px solid ${isLight ? '#c8ded1' : '#234a38'}`,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em'
+                  }}>
+                    {currentTabInfo.badge}
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.76rem', color: T.txtSecondary, margin: 0, fontWeight: '600', lineHeight: '1.35' }}>
+                  {currentTabInfo.desc}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              <span style={{ fontSize: '0.70rem', color: T.txtMuted, fontWeight: '700', background: T.controlBg, padding: '5px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                📦 Modul Logistik: <strong style={{ color: T.primary }}>{currentTabInfo.shortLabel}</strong>
+              </span>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* SPIN LOADING OVERLAY */}
       {isTabLoading && (

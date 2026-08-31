@@ -154,7 +154,8 @@ export function DoubleCalendarPicker({
   noWrapper = false,
   themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
+  const isCalmSage = themeMode === 'calm_sage';
+  const isLight = themeMode === 'calm_sage' || themeMode === 'soft_blue' || themeMode === 'light';
   const [baseMonth, setBaseMonth] = useState(() => {
     if (startDate) {
       const d = new Date(startDate);
@@ -503,9 +504,9 @@ export function DoubleCalendarPicker({
               style={{
                 padding: '5px 10px',
                 borderRadius: '7px',
-                border: isActive ? `1px solid ${T.accentGold}` : '1px solid transparent',
+                border: isActive ? `1px solid ${T.primary}` : '1px solid transparent',
                 background: isActive ? (isLight ? '#ffffff' : 'rgba(245, 158, 11, 0.20)') : 'transparent',
-                color: isActive ? (isLight ? '#1a6fc4' : '#fbbf24') : T.txtSecondary,
+                color: isActive ? (isCalmSage ? '#2d7a5b' : '#fbbf24') : T.txtSecondary,
                 fontWeight: isActive ? '900' : '700',
                 fontSize: '0.74rem',
                 cursor: 'pointer',
@@ -513,7 +514,7 @@ export function DoubleCalendarPicker({
                 alignItems: 'center',
                 gap: '4px',
                 transition: 'all 0.15s ease',
-                boxShadow: isActive ? '0 2px 6px rgba(0,0,0,0.1)' : 'none'
+                boxShadow: isActive ? (isLight ? '0 2px 6px rgba(0,0,0,0.08)' : '0 2px 6px rgba(0,0,0,0.3)') : 'none'
               }}
             >
               <span>{preset.label}</span>
@@ -1077,7 +1078,8 @@ export function ColumnVisibilityDropdown({ columns, visibleColumns, onToggleColu
 
 export default function SalesTransactionsPage({ masterData, setMasterData, selectedBranch, themeMode = 'dark', onRefreshFromServer }) {
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
+  const isCalmSage = themeMode === 'calm_sage';
+  const isLight = themeMode === 'calm_sage' || themeMode === 'soft_blue' || themeMode === 'light';
 
   const [activeTab, setActiveTab] = useState('omzet');
   const [searchTerm, setSearchTerm] = useState('');
@@ -1339,15 +1341,15 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
 
   const analysisTabs = [
-    { id: 'omzet', name: '1. Omzet Penjualan', icon: DollarSign },
-    { id: 'categories', name: '2. Penjualan By Menu', icon: Layers },
-    { id: 'summary', name: '3. Ulasan Eksekutif', icon: FileText },
-    { id: 'daily', name: '4. Ringkasan Penjualan', icon: Calendar },
-    { id: 'transaction_history', name: '5. Riwayat Transaksi', icon: Receipt },
-    { id: 'hourly', name: '6. Penjualan per Jam', icon: Clock },
-    { id: 'receipts', name: '7. Penjualan By Layanan', icon: ShoppingBag },
-    { id: 'customers', name: '8. Penjualan per Pelanggan', icon: Users },
-    { id: 'monthly_comparison', name: '9. Perbandingan Bulanan', icon: TrendingUp }
+    { id: 'omzet', name: '1. Omzet Penjualan', shortLabel: 'Omzet', desc: 'Grafik tren pendapatan harian & bulanan, perbandingan omzet kotor vs bersih antar cabang, dan rekapan diskon promosi.', icon: DollarSign, badge: 'Revenue & Trend' },
+    { id: 'categories', name: '2. Penjualan By Menu', shortLabel: 'By Menu', desc: 'Peringkat menu makanan & minuman terlaris, volume porsi terjual, analisis kontribusi omzet, dan margin profit.', icon: Layers, badge: 'Menu Analytics' },
+    { id: 'summary', name: '3. Ulasan Eksekutif', shortLabel: 'Eksekutif', desc: 'Rangkuman performa bisnis restoran cerdas bertenaga AI, indikator KPI harian, serta analisis pembatalan nota (void).', icon: FileText, badge: 'AI Executive' },
+    { id: 'daily', name: '4. Ringkasan Penjualan', shortLabel: 'Ringkasan', desc: 'Rekapitulasi penjualan harian Luna POS, rincian biaya layanan (service charge), pajak restoran (PB1), dan adjustment.', icon: Calendar, badge: 'Daily POS' },
+    { id: 'transaction_history', name: '5. Riwayat Transaksi', shortLabel: 'Riwayat', desc: 'Log lengkap seluruh nota transaksi kasir, rincian invoice pelanggan, kasir bertugas, status pembayaran, dan cetak struk.', icon: Receipt, badge: 'Log Invoice' },
+    { id: 'hourly', name: '6. Penjualan per Jam', shortLabel: 'Per Jam', desc: 'Analisis waktu sibuk restoran (peak hours), persebaran transaksi per jam operasional, dan kapasitas meja makan.', icon: Clock, badge: 'Peak Hours' },
+    { id: 'receipts', name: '7. Penjualan By Layanan', shortLabel: 'Layanan', desc: 'Komparasi tipe pesanan Makan di Tempat (Dine In), Bawa Pulang (Take Away), Delivery Online, serta metode pembayaran kasir.', icon: ShoppingBag, badge: 'Order Types' },
+    { id: 'customers', name: '8. Penjualan per Pelanggan', shortLabel: 'Pelanggan', desc: 'Analisis pelanggan setia, rata-rata nominal belanja per transaksi (AOV), dan akumulasi poin membership loyalitas.', icon: Users, badge: 'Customer KPI' },
+    { id: 'monthly_comparison', name: '9. Perbandingan Bulanan', shortLabel: 'Bulanan', desc: 'Laporan pertumbuhan Month-over-Month (MoM), tren kenaikan penjualan antar bulan, dan evaluasi target omzet.', icon: TrendingUp, badge: 'MoM Growth' }
   ];
 
   const transactions = masterData.salesTransactions || [];
@@ -3479,9 +3481,49 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   });
 
   filteredHourTxs.forEach(t => {
-    // Expected time format: "HH:MM" or "HH:MM:SS"
-    if (!t.time) return;
-    const hourPart = parseInt(t.time.split(':')[0], 10);
+    let hourPart = -1;
+
+    // 1. Cek dari ID transaksi berformat TX-POS-HHMM...
+    if (t.id && typeof t.id === 'string' && t.id.startsWith('TX-POS-')) {
+      const match = t.id.match(/^TX-POS-(\d{2})/);
+      if (match) {
+        const hId = parseInt(match[1], 10);
+        if (hId >= 6 && hId < 24) hourPart = hId;
+      }
+    }
+
+    // 2. Cek t.time jika valid (bukan 00:xx yang default)
+    if (hourPart === -1 && t.time && typeof t.time === 'string' && t.time.trim() !== '') {
+      const cleanTime = t.time.replace(/\./g, ':').trim();
+      const h = parseInt(cleanTime.split(':')[0], 10);
+      if (!isNaN(h) && h >= 6 && h < 24) hourPart = h;
+    }
+
+    // 3. Cek dari created_at jika ada
+    if (hourPart === -1 && t.created_at) {
+      if (typeof t.created_at === 'string') {
+        const timeSub = t.created_at.includes(' ') ? t.created_at.split(' ')[1] : (t.created_at.includes('T') ? t.created_at.split('T')[1] : '');
+        if (timeSub) {
+          const h = parseInt(timeSub.split(':')[0], 10);
+          if (!isNaN(h) && h >= 0 && h < 24) hourPart = h;
+        }
+      } else if (t.created_at instanceof Date) {
+        hourPart = t.created_at.getHours();
+      }
+    }
+
+    // 4. Cek timestamp
+    if (hourPart === -1 && t.timestamp) {
+      const d = new Date(t.timestamp);
+      if (!isNaN(d.getTime())) hourPart = d.getHours();
+    }
+
+    // 5. Fallback ke t.time
+    if (hourPart === -1 && t.time) {
+      const h = parseInt(String(t.time).split(':')[0], 10);
+      if (!isNaN(h) && h >= 0 && h < 24) hourPart = h;
+    }
+
     if (hourPart >= 0 && hourPart < 24) {
       const netVal = (t.amount || 0) - (t.discount || 0);
       hourlyBuckets[hourPart].txCount += 1;
@@ -4130,22 +4172,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease, color 0.25s ease' }} className="animate-fade-in">
-      {/* STICKY TOP HEADER CONTAINER (Batas Atas Scroll: Sinkronisasi Otomatis Mobile APK Kasir) */}
+      {/* TOP HEADER & NAVIGATION CONTAINER */}
       <div style={{
-        position: 'sticky',
-        top: '-20px',
-        zIndex: 100,
-        background: isLight ? 'rgba(240, 246, 255, 0.96)' : 'rgba(11, 15, 25, 0.96)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        paddingTop: '16px',
-        paddingBottom: '12px',
-        marginTop: '-20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px',
-        borderBottom: `1px solid ${T.border}`,
-        boxShadow: isLight ? '0 10px 25px -5px rgba(0, 0, 0, 0.08)' : '0 10px 25px -5px rgba(0, 0, 0, 0.45)'
+        gap: '12px'
       }}>
         {/* PAGE TITLE HEADER */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -4180,66 +4211,164 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
         </div>
 
-        {/* 9 Sub-Tabs Navigation Grid (3 Baris x 3 Sub-Tab) — Enterprise Executive Styling */}
+        {/* 9 Sub-Tabs Navigation — SuperApp Circular Icon Grid (GoPay / Modern App Style) */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '8px',
-          background: isLight ? 'rgba(234, 244, 255, 0.7)' : 'rgba(15, 23, 42, 0.6)',
-          padding: '6px',
-          borderRadius: '14px',
-          border: `1px solid ${isLight ? 'rgba(176, 204, 236, 0.6)' : 'rgba(51, 65, 85, 0.6)'}`,
-          boxShadow: isLight ? 'inset 0 1px 3px rgba(0,0,0,0.04)' : 'inset 0 1px 3px rgba(0,0,0,0.3)'
+          background: T.cardBg,
+          borderRadius: '16px',
+          border: `1px solid ${T.border}`,
+          padding: '14px 18px',
+          boxShadow: T.shadowSm
         }}>
-          {analysisTabs.map((tab, idx) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 12px',
-                  borderRadius: '10px',
-                  border: isActive ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid transparent',
-                  background: isActive
-                    ? (isLight ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, rgba(30, 58, 138, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)')
-                    : (isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(30, 41, 59, 0.4)'),
-                  color: isActive ? '#ffffff' : (isLight ? '#1e4a7c' : '#94a3b8'),
-                  fontWeight: isActive ? '900' : '700',
-                  fontSize: '0.74rem',
-                  letterSpacing: '-0.01em',
-                  cursor: 'pointer',
-                  transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  boxShadow: isActive
-                    ? (isLight ? '0 4px 14px rgba(13, 82, 149, 0.35)' : '0 4px 14px rgba(56, 189, 248, 0.25)')
-                    : 'none',
-                  transform: isActive ? 'scale(1.01)' : 'none'
-                }}
-              >
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(85px, 1fr))',
+            gap: '8px',
+            alignItems: 'start'
+          }}>
+            {analysisTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <div
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  title={`${tab.name} — ${tab.desc}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '8px 4px 6px 4px',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    background: isActive ? (isLight ? 'rgba(45, 122, 91, 0.08)' : 'rgba(45, 122, 91, 0.18)') : 'transparent',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative'
+                  }}
+                >
+                  {/* Circular Icon Badge */}
+                  <div style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: isActive
+                      ? T.primaryBtn
+                      : (isLight ? '#eef6f2' : '#14291f'),
+                    border: isActive
+                      ? `2px solid ${T.primary}`
+                      : `1.5px solid ${isLight ? '#c8ded1' : '#234a38'}`,
+                    color: isActive ? '#ffffff' : T.primary,
+                    boxShadow: isActive
+                      ? (T.primaryBtnShadow ? `0 6px 16px ${T.primaryBtnShadow}` : '0 6px 16px rgba(45, 122, 91, 0.40)')
+                      : 'none',
+                    transform: isActive ? 'scale(1.06)' : 'none',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}>
+                    <Icon size={20} />
+                  </div>
+
+                  {/* Text Label */}
+                  <span style={{
+                    fontSize: '0.74rem',
+                    fontWeight: isActive ? '900' : '700',
+                    color: isActive ? T.primary : T.txtPrimary,
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '100%',
+                    letterSpacing: '-0.01em'
+                  }}>
+                    {tab.shortLabel || tab.name}
+                  </span>
+
+                  {/* Active Indicator Underline */}
+                  {isActive && (
+                    <div style={{
+                      width: '18px',
+                      height: '3px',
+                      borderRadius: '2px',
+                      background: T.primary,
+                      marginTop: '-4px'
+                    }} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* DYNAMIC ACTIVE CONTEXT CARD (Penjelasan Lengkap Sub-Tab Saat Diklik) */}
+        {(() => {
+          const currentTabInfo = analysisTabs.find(t => t.id === activeTab) || analysisTabs[0];
+          const CurrentIcon = currentTabInfo.icon;
+          return (
+            <div className="glass-card animate-fade-in" style={{
+              background: T.cardBg,
+              border: `1px solid ${T.border}`,
+              borderLeft: `5px solid ${T.primary}`,
+              borderRadius: '14px',
+              padding: '14px 18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '14px',
+              boxShadow: T.shadowSm
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: '280px' }}>
                 <div style={{
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '6px',
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  background: T.primaryBtn,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: isActive ? 'rgba(255, 255, 255, 0.18)' : (isLight ? 'rgba(30, 74, 124, 0.08)' : 'rgba(255, 255, 255, 0.06)'),
+                  color: '#ffffff',
+                  boxShadow: T.primaryBtnShadow ? `0 4px 14px ${T.primaryBtnShadow}` : '0 4px 14px rgba(45, 122, 91, 0.35)',
                   flexShrink: 0
                 }}>
-                  <Icon size={14} color={isActive ? '#ffffff' : (isLight ? '#1a6fc4' : '#38bdf8')} />
+                  <CurrentIcon size={20} />
                 </div>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.name}</span>
-              </button>
-            );
-          })}
-        </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h3 style={{ fontSize: '0.92rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
+                      {currentTabInfo.name}
+                    </h3>
+                    <span style={{
+                      fontSize: '0.62rem',
+                      fontWeight: '800',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      background: isLight ? 'rgba(45, 122, 91, 0.10)' : 'rgba(45, 122, 91, 0.22)',
+                      color: T.primary,
+                      border: `1px solid ${isLight ? '#c8ded1' : '#234a38'}`,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em'
+                    }}>
+                      {currentTabInfo.badge}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.76rem', color: T.txtSecondary, margin: 0, fontWeight: '600', lineHeight: '1.35' }}>
+                    {currentTabInfo.desc}
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                <span style={{ fontSize: '0.70rem', color: T.txtMuted, fontWeight: '700', background: T.controlBg, padding: '5px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                  💡 Modul Aktif: <strong style={{ color: T.primary }}>{currentTabInfo.shortLabel}</strong>
+                </span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* GLOBAL AUTO SYNC STATUS BANNER BAR */}
         <div className="glass-card animate-fade-in" style={{
@@ -4403,8 +4532,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 style={{ 
                   padding: '7px 14px', 
                   fontSize: '0.76rem', 
-                  color: '#000000', 
-                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', 
+                  color: '#ffffff', 
+                  background: T.primaryBtn, 
                   border: 'none', 
                   borderRadius: '8px', 
                   fontWeight: '800', 
@@ -4412,11 +4541,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   alignItems: 'center', 
                   gap: '6px', 
                   cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(245, 158, 11, 0.35)'
+                  boxShadow: T.primaryBtnShadow ? `0 2px 8px ${T.primaryBtnShadow}` : '0 2px 8px rgba(45, 122, 91, 0.35)'
                 }}
                 title="Impor transaksi penjualan massal dari file PDF atau Excel"
               >
-                <Upload size={14} color="#000000" />
+                <Upload size={14} color="#ffffff" />
                 <span>Import PDF & Excel</span>
               </button>
 

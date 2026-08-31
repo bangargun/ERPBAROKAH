@@ -32,7 +32,8 @@ import { executePermanentDelete } from '../../utils/deleteGuard';
 
 export default function ApprovalCenter({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
+  const isCalmSage = themeMode === 'calm_sage';
+  const isLight = themeMode === 'calm_sage' || themeMode === 'soft_blue' || themeMode === 'light';
   // FILTER STATES
   const [searchQuery, setSearchQuery] = useState('');
   const [outletFilter, setOutletFilter] = useState(selectedBranch || 'ALL');
@@ -696,20 +697,276 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
         </div>
       </div>
 
+      {/* SUB-TAB CIRCULAR ICON GRID & DYNAMIC CONTEXT CARD */}
+      <div style={{
+        background: T.cardBg,
+        borderRadius: '16px',
+        border: `1px solid ${T.border}`,
+        padding: '14px 18px',
+        boxShadow: T.shadowSm
+      }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+          gap: '10px',
+          alignItems: 'start'
+        }}>
+          {[
+            {
+              id: 'ALL',
+              label: '1. Semua Laporan',
+              shortLabel: 'Semua Laporan',
+              icon: Layers,
+              badge: 'All Records',
+              desc: 'Seluruh arsip laporan operasional harian cabang kasir & input manual admin.'
+            },
+            {
+              id: 'ACC',
+              label: '2. Menunggu ACC',
+              shortLabel: 'Menunggu ACC',
+              icon: Clock,
+              badge: 'Pending Approval',
+              desc: 'Laporan shift harian kasir yang baru masuk dan membutuhkan verifikasi & persetujuan manajemen.'
+            },
+            {
+              id: 'Approved',
+              label: '3. Disetujui (Approved)',
+              shortLabel: 'Disetujui',
+              icon: CheckCircle2,
+              badge: 'Approved Status',
+              desc: 'Laporan harian yang telah disetujui (ACC) dan langsung masuk ke pembukuan Laba Rugi & Neraca.'
+            },
+            {
+              id: 'Done',
+              label: '4. Selesai (Done)',
+              shortLabel: 'Selesai',
+              icon: CheckSquare,
+              badge: 'Completed',
+              desc: 'Laporan operasional yang telah selesai diproses dan diarsipkan permanen.'
+            },
+            {
+              id: 'Upload Excel',
+              label: '5. Batch Upload Excel',
+              shortLabel: 'Upload Excel',
+              icon: FileSpreadsheet,
+              badge: 'Import Batch',
+              desc: 'Laporan transaksi yang diunggah secara batch dari file rekonsiliasi Excel.'
+            }
+          ].map(tab => {
+            const Icon = tab.icon;
+            const isTabActive = tab.id === 'Upload Excel' 
+              ? sourceFilter === 'Upload Excel' 
+              : (sourceFilter === 'ALL' && statusFilter === tab.id);
+
+            return (
+              <div
+                key={tab.id}
+                onClick={() => {
+                  if (tab.id === 'Upload Excel') {
+                    setSourceFilter('Upload Excel');
+                    setStatusFilter('ALL');
+                  } else {
+                    setSourceFilter('ALL');
+                    setStatusFilter(tab.id);
+                  }
+                  setCurrentPage(1);
+                }}
+                title={`${tab.label} — ${tab.desc}`}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '8px 6px 6px 6px',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  background: isTabActive ? (isLight ? 'rgba(45, 122, 91, 0.08)' : 'rgba(45, 122, 91, 0.18)') : 'transparent',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative'
+                }}
+              >
+                {/* Circular Icon Badge */}
+                <div style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: isTabActive
+                    ? T.primaryBtn
+                    : (isLight ? '#eef6f2' : '#14291f'),
+                  border: isTabActive
+                    ? `2px solid ${T.primary}`
+                    : `1.5px solid ${isLight ? '#c8ded1' : '#234a38'}`,
+                  color: isTabActive ? '#ffffff' : T.primary,
+                  boxShadow: isTabActive
+                    ? (T.primaryBtnShadow ? `0 6px 16px ${T.primaryBtnShadow}` : '0 6px 16px rgba(45, 122, 91, 0.40)')
+                    : 'none',
+                  transform: isTabActive ? 'scale(1.06)' : 'none',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}>
+                  <Icon size={20} />
+                </div>
+
+                {/* Text Label */}
+                <span style={{
+                  fontSize: '0.74rem',
+                  fontWeight: isTabActive ? '900' : '700',
+                  color: isTabActive ? T.primary : T.txtPrimary,
+                  textAlign: 'center',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '100%',
+                  letterSpacing: '-0.01em'
+                }}>
+                  {tab.shortLabel}
+                </span>
+
+                {/* Active Indicator Underline */}
+                {isTabActive && (
+                  <div style={{
+                    width: '18px',
+                    height: '3px',
+                    borderRadius: '2px',
+                    background: T.primary,
+                    marginTop: '-4px'
+                  }} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* DYNAMIC ACTIVE CONTEXT CARD (Penjelasan Lengkap Approval Saat Diklik) */}
+      {(() => {
+        const approvalTabsMeta = [
+          {
+            id: 'ALL',
+            label: '1. Semua Laporan',
+            shortLabel: 'Semua Laporan',
+            icon: Layers,
+            badge: 'All Records',
+            desc: 'Seluruh arsip laporan operasional harian cabang kasir & input manual admin.'
+          },
+          {
+            id: 'ACC',
+            label: '2. Menunggu ACC',
+            shortLabel: 'Menunggu ACC',
+            icon: Clock,
+            badge: 'Pending Approval',
+            desc: 'Laporan shift harian kasir yang baru masuk dan membutuhkan verifikasi & persetujuan manajemen.'
+          },
+          {
+            id: 'Approved',
+            label: '3. Disetujui (Approved)',
+            shortLabel: 'Disetujui',
+            icon: CheckCircle2,
+            badge: 'Approved Status',
+            desc: 'Laporan harian yang telah disetujui (ACC) dan langsung masuk ke pembukuan Laba Rugi & Neraca.'
+          },
+          {
+            id: 'Done',
+            label: '4. Selesai (Done)',
+            shortLabel: 'Selesai',
+            icon: CheckSquare,
+            badge: 'Completed',
+            desc: 'Laporan operasional yang telah selesai diproses dan diarsipkan permanen.'
+          },
+          {
+            id: 'Upload Excel',
+            label: '5. Batch Upload Excel',
+            shortLabel: 'Upload Excel',
+            icon: FileSpreadsheet,
+            badge: 'Import Batch',
+            desc: 'Laporan transaksi yang diunggah secara batch dari file rekonsiliasi Excel.'
+          }
+        ];
+        const activeItemKey = sourceFilter === 'Upload Excel' ? 'Upload Excel' : statusFilter;
+        const currentTabInfo = approvalTabsMeta.find(t => t.id === activeItemKey) || approvalTabsMeta[0];
+        const CurrentIcon = currentTabInfo.icon;
+
+        return (
+          <div className="glass-card animate-fade-in" style={{
+            background: T.cardBg,
+            border: `1px solid ${T.border}`,
+            borderLeft: `5px solid ${T.primary}`,
+            borderRadius: '14px',
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '14px',
+            boxShadow: T.shadowSm
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: '280px' }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '12px',
+                background: T.primaryBtn,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                boxShadow: T.primaryBtnShadow ? `0 4px 14px ${T.primaryBtnShadow}` : '0 4px 14px rgba(45, 122, 91, 0.35)',
+                flexShrink: 0
+              }}>
+                <CurrentIcon size={20} />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h3 style={{ fontSize: '0.92rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
+                    {currentTabInfo.label}
+                  </h3>
+                  <span style={{
+                    fontSize: '0.62rem',
+                    fontWeight: '800',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: isLight ? 'rgba(45, 122, 91, 0.10)' : 'rgba(45, 122, 91, 0.22)',
+                    color: T.primary,
+                    border: `1px solid ${isLight ? '#c8ded1' : '#234a38'}`,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em'
+                  }}>
+                    {currentTabInfo.badge}
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.76rem', color: T.txtSecondary, margin: 0, fontWeight: '600', lineHeight: '1.35' }}>
+                  {currentTabInfo.desc}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              <span style={{ fontSize: '0.70rem', color: T.txtMuted, fontWeight: '700', background: T.controlBg, padding: '5px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                📋 Status Approval: <strong style={{ color: T.primary }}>{currentTabInfo.shortLabel}</strong>
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* FILTER & SEARCH BAR */}
-      <div style={{ background: '#0f172a', padding: '16px 20px', borderRadius: '14px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '14px', boxShadow: T.shadowSm }}>
         
         {/* BARIS 1: SEARCH & FILTER UTAMA */}
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '260px' }}>
             <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
-              <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                 placeholder="Cari No. Laporan, Kasir, Outlet..."
-                style={{ width: '100%', padding: '9px 12px 9px 36px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem' }}
+                style={{ width: '100%', padding: '9px 12px 9px 36px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.82rem' }}
               />
             </div>
           </div>
@@ -719,11 +976,11 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
             {/* PENGAJU FILTER */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Pengaju:</label>
+              <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Pengaju:</label>
               <select
                 value={submitterFilter}
                 onChange={e => { setSubmitterFilter(e.target.value); setCurrentPage(1); }}
-                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+                style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
               >
                 <option value="ALL">Semua Pengaju</option>
                 <option value="POS Kasir">POS Kasir</option>
@@ -733,14 +990,14 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
             {/* SUMBER DATA FILTER */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <label style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <FileSpreadsheet size={14} color="#34d399" />
+              <label style={{ fontSize: '0.78rem', color: T.primary, fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <FileSpreadsheet size={14} color={T.primary} />
                 <span>Sumber Data:</span>
               </label>
               <select
                 value={sourceFilter}
                 onChange={e => { setSourceFilter(e.target.value); setCurrentPage(1); }}
-                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #10b981', borderRadius: '8px', color: '#34d399', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+                style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.primary}`, borderRadius: '8px', color: T.primary, fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
               >
                 <option value="ALL">Semua Sumber Data</option>
                 <option value="Upload Excel">Upload Excel</option>
@@ -752,11 +1009,11 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
             {/* STATUS FILTER */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Status:</label>
+              <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Status:</label>
               <select
                 value={statusFilter}
                 onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+                style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
               >
                 <option value="ALL">Semua Status</option>
                 <option value="ACC">ACC (Menunggu Persetujuan)</option>
@@ -768,9 +1025,9 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
         </div>
 
         {/* BARIS 2: WIDGET RENTANG WAKTU (TANGGAL) */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', paddingTop: '10px', borderTop: '1px dashed #334155' }}>
-          <div style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Calendar size={15} color="#38bdf8" />
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', paddingTop: '10px', borderTop: `1px dashed ${T.border}` }}>
+          <div style={{ fontSize: '0.78rem', color: T.primary, fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Calendar size={15} color={T.primary} />
             <span>Rentang Tanggal:</span>
           </div>
 
@@ -779,14 +1036,14 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
               type="date"
               value={startDate}
               onChange={e => { setStartDate(e.target.value); setCurrentPage(1); }}
-              style={{ padding: '7px 10px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.80rem', fontWeight: '700', colorScheme: 'dark', outline: 'none' }}
+              style={{ padding: '7px 10px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700', outline: 'none' }}
             />
-            <span style={{ color: '#94a3b8', fontSize: '0.80rem', fontWeight: '700' }}>s/d</span>
+            <span style={{ color: T.txtMuted, fontSize: '0.80rem', fontWeight: '700' }}>s/d</span>
             <input
               type="date"
               value={endDate}
               onChange={e => { setEndDate(e.target.value); setCurrentPage(1); }}
-              style={{ padding: '7px 10px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.80rem', fontWeight: '700', colorScheme: 'dark', outline: 'none' }}
+              style={{ padding: '7px 10px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700', outline: 'none' }}
             />
 
             {(startDate || endDate) && (
@@ -873,7 +1130,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
               <button
                 key={p.id}
                 onClick={p.action}
-                style={{ padding: '5px 10px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#94a3b8', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+                style={{ padding: '5px 10px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
               >
                 {p.label}
               </button>
@@ -884,11 +1141,11 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       </div>
 
       {/* MAIN TABLE: 7 COLUMNS (WITH DEDICATED SUMBER DATA COLUMN) */}
-      <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', overflow: 'hidden' }}>
+      <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '16px', overflow: 'hidden', boxShadow: T.shadowSm }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
             <thead>
-              <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
+              <tr style={{ background: T.tableHeaderBg, borderBottom: `2px solid ${T.border}`, color: T.txtPrimary, textAlign: 'left' }}>
                 <th style={{ padding: '14px 16px', fontWeight: '800', width: '130px' }}>TANGGAL</th>
                 <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>NAMA OUTLET</th>
                 <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO LAPORAN</th>
@@ -901,23 +1158,23 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
             <tbody>
               {paginatedReports.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                  <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: T.txtMuted, fontSize: '0.85rem' }}>
                     Belum ada laporan harian yang sesuai dengan filter.
                   </td>
                 </tr>
               ) : (
                 paginatedReports.map(item => {
                   return (
-                    <tr key={item.id} style={{ borderBottom: '1px solid #334155', transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                    <tr key={item.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s' }}>
                       
                       {/* 1. TANGGAL */}
-                      <td style={{ padding: '14px 16px', color: '#f8fafc', fontWeight: '600' }}>
+                      <td style={{ padding: '14px 16px', color: T.txtPrimary, fontWeight: '600' }}>
                         <div>{formatDateIndo(item.date)}</div>
                       </td>
 
                       {/* 2. NAMA OUTLET */}
                       <td style={{ padding: '14px 16px' }}>
-                        <span style={{ fontSize: '0.84rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {item.outlet_name || (outletsList[0]?.name) || 'Outlet Barokah'}
                         </span>
                       </td>
@@ -1094,95 +1351,131 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
       {/* MODAL DETAIL LAPORAN (KLIK NO LAPORAN) */}
       {detailModalItem && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
-          <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', width: '100%', maxWidth: '720px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: isLight ? 'rgba(21, 46, 34, 0.45)' : 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '16px', width: '100%', maxWidth: '720px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: T.shadowLg }}>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '14px' }}>
               <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#38bdf8', margin: 0 }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: T.primary, margin: 0 }}>
                   Rincian Laporan: {detailModalItem.report_no}
                 </h3>
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+                <div style={{ fontSize: '0.78rem', color: T.txtMuted, marginTop: '2px' }}>
                   {formatDateIndo(detailModalItem.date)} &bull; {detailModalItem.outlet_name}
                 </div>
               </div>
-              <button onClick={() => setDetailModalItem(null)} style={{ background: '#334155', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', cursor: 'pointer' }}>
+              <button onClick={() => setDetailModalItem(null)} style={{ background: T.controlBg, border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.txtPrimary, cursor: 'pointer' }}>
                 <X size={18} />
               </button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-              <div style={{ background: '#0f172a', padding: '12px 14px', borderRadius: '10px', border: '1px solid #334155' }}>
-                <div style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>PENGAJU</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: '800', color: '#f8fafc', marginTop: '4px' }}>{detailModalItem.submitter_type} ({detailModalItem.cashier_name})</div>
+              <div style={{ background: T.controlBg, padding: '12px 14px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700' }}>PENGAJU</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: '800', color: T.txtPrimary, marginTop: '4px' }}>{detailModalItem.submitter_type} ({detailModalItem.cashier_name})</div>
               </div>
 
-              <div style={{ background: '#0f172a', padding: '12px 14px', borderRadius: '10px', border: '1px solid #334155' }}>
-                <div style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>STATUS LAPORAN</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: '800', color: '#38bdf8', marginTop: '4px' }}>{detailModalItem.status}</div>
+              <div style={{ background: T.controlBg, padding: '12px 14px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700' }}>STATUS LAPORAN</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: '800', color: T.primary, marginTop: '4px' }}>{detailModalItem.status}</div>
               </div>
             </div>
 
             {/* FINANCIAL SUMMARY */}
-            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc', borderBottom: '1px dashed #334155', paddingBottom: '8px' }}>
+            <div style={{ background: T.controlBg, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary, borderBottom: `1px dashed ${T.border}`, paddingBottom: '8px' }}>
                 Ringkasan Penjualan &amp; Laba Kotor:
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
-                <span style={{ color: '#94a3b8' }}>Penjualan Tunai (Cash):</span>
-                <span style={{ color: '#f8fafc', fontWeight: '800' }}>{formatRupiah(detailModalItem.cash_sales)}</span>
+                <span style={{ color: T.txtSecondary }}>Penjualan Tunai (Cash):</span>
+                <span style={{ color: T.txtPrimary, fontWeight: '800' }}>{formatRupiah(detailModalItem.cash_sales)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
-                <span style={{ color: '#94a3b8' }}>Penjualan Non-Tunai (QRIS/EDC):</span>
-                <span style={{ color: '#f8fafc', fontWeight: '800' }}>{formatRupiah(detailModalItem.non_cash_sales)}</span>
+                <span style={{ color: T.txtSecondary }}>Penjualan Non-Tunai (QRIS/EDC):</span>
+                <span style={{ color: T.txtPrimary, fontWeight: '800' }}>{formatRupiah(detailModalItem.non_cash_sales)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
-                <span style={{ color: '#94a3b8' }}>Diskon Penjualan:</span>
+                <span style={{ color: T.txtSecondary }}>Diskon Penjualan:</span>
                 <span style={{ color: '#fb7185', fontWeight: '800' }}>- {formatRupiah(detailModalItem.sales_discount || 0)}</span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', fontWeight: '800', borderTop: '1px dashed #334155', paddingTop: '8px' }}>
-                <span style={{ color: '#38bdf8' }}>TOTAL PENDAPATAN:</span>
-                <span style={{ color: '#38bdf8' }}>{formatRupiah(detailModalItem.net_sales)}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', fontWeight: '800', borderTop: `1px dashed ${T.border}`, paddingTop: '8px' }}>
+                <span style={{ color: T.primary }}>TOTAL PENDAPATAN:</span>
+                <span style={{ color: T.primary }}>{formatRupiah(detailModalItem.net_sales)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
-                <span style={{ color: '#94a3b8' }}>Total Pengeluaran:</span>
+                <span style={{ color: T.txtSecondary }}>Total Pengeluaran:</span>
                 <span style={{ color: '#fb7185', fontWeight: '800' }}>- {formatRupiah(detailModalItem.total_expense)}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.92rem', fontWeight: '900', borderTop: '1px dashed #334155', paddingTop: '8px' }}>
-                <span style={{ color: '#34d399' }}>LABA KOTOR:</span>
-                <span style={{ color: '#34d399' }}>{formatRupiah(detailModalItem.gross_profit || (detailModalItem.net_sales - detailModalItem.total_expense))}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
+                <span style={{ color: T.txtSecondary }}>HPP Pembelian Bahan Baku:</span>
+                <span style={{ color: '#fbbf24', fontWeight: '800' }}>- {formatRupiah(detailModalItem.cogs_expense || 0)}</span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', fontWeight: '900', borderTop: `1px solid ${T.border}`, paddingTop: '10px' }}>
+                <span style={{ color: T.txtPrimary }}>LABA BERSIH HARIAN:</span>
+                <span style={{ color: Number(detailModalItem.net_profit || 0) >= 0 ? '#10b981' : '#ef4444' }}>
+                  {formatRupiah(detailModalItem.net_profit)}
+                </span>
               </div>
             </div>
 
+            {/* ACTION BUTTONS (APPROVE, EDIT, DELETE) */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: `1px solid ${T.border}`, paddingTop: '16px' }}>
+              <button
+                onClick={() => { setDetailModalItem(null); handleOpenEdit(detailModalItem); }}
+                style={{ padding: '9px 18px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Edit3 size={15} />
+                <span>Edit Laporan</span>
+              </button>
+
+              <button
+                onClick={() => handleDeleteReport(detailModalItem)}
+                style={{ padding: '9px 18px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', borderRadius: '8px', color: '#f87171', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Trash2 size={15} />
+                <span>Hapus Laporan</span>
+              </button>
+
+              {detailModalItem.status !== 'Approved' && (
+                <button
+                  onClick={() => handleApproveReport(detailModalItem)}
+                  style={{ padding: '9px 22px', background: T.primaryBtn, border: 'none', borderRadius: '8px', color: '#ffffff', fontWeight: '900', fontSize: '0.84rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 14px rgba(45, 122, 91, 0.35)' }}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>Setujui (Approve)</span>
+                </button>
+              )}
+            </div>
+
             {/* UANG DI LACI & MODAL METRICS */}
-            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc', borderBottom: '1px dashed #334155', paddingBottom: '8px' }}>
+            <div style={{ background: T.controlBg, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary, borderBottom: `1px dashed ${T.border}`, paddingBottom: '8px' }}>
                 Metrik Uang Di Laci &amp; Hutang Modal:
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
-                <span style={{ color: '#94a3b8' }}>Uang Di Laci (Cash in Drawer):</span>
-                <span style={{ color: '#fbbf24', fontWeight: '900' }}>{formatRupiah(detailModalItem.cash_in_drawer || (detailModalItem.net_sales - detailModalItem.total_expense - detailModalItem.non_cash_sales))}</span>
+                <span style={{ color: T.txtSecondary }}>Uang Di Laci (Cash in Drawer):</span>
+                <span style={{ color: '#b45309', fontWeight: '900' }}>{formatRupiah(detailModalItem.cash_in_drawer || (detailModalItem.net_sales - detailModalItem.total_expense - detailModalItem.non_cash_sales))}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
-                <span style={{ color: '#94a3b8' }}>Modal Ideal Kasir:</span>
-                <span style={{ color: '#f8fafc', fontWeight: '800' }}>{formatRupiah(detailModalItem.modal_ideal || 0)}</span>
+                <span style={{ color: T.txtSecondary }}>Modal Ideal Kasir:</span>
+                <span style={{ color: T.txtPrimary, fontWeight: '800' }}>{formatRupiah(detailModalItem.modal_ideal || 0)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
-                <span style={{ color: '#94a3b8' }}>Sisa Hutang Modal:</span>
-                <span style={{ color: '#38bdf8', fontWeight: '800' }}>{formatRupiah(detailModalItem.modal_debt_remaining || 0)}</span>
+                <span style={{ color: T.txtSecondary }}>Sisa Hutang Modal:</span>
+                <span style={{ color: T.primary, fontWeight: '800' }}>{formatRupiah(detailModalItem.modal_debt_remaining || 0)}</span>
               </div>
             </div>
 
             {/* MULTI-ROW EXPENSES BREAKDOWN */}
             {detailModalItem.expense_rows && detailModalItem.expense_rows.length > 0 && (
-              <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px solid #334155' }}>
-                <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#f8fafc', marginBottom: '8px' }}>
+              <div style={{ background: T.controlBg, padding: '14px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtPrimary, marginBottom: '8px' }}>
                   Rincian Pengeluaran ({detailModalItem.expense_rows.length} Baris):
                 </div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left' }}>
                   <thead>
-                    <tr style={{ background: '#1e293b', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                    <tr style={{ background: T.tableHeaderBg, color: T.txtPrimary, borderBottom: `1px solid ${T.border}` }}>
                       <th style={{ padding: '6px 8px' }}>Nama Item</th>
                       <th style={{ padding: '6px 8px' }}>Kategori</th>
                       <th style={{ padding: '6px 8px', textAlign: 'center' }}>Qty</th>
@@ -1192,12 +1485,12 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                   </thead>
                   <tbody>
                     {detailModalItem.expense_rows.map((row, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                        <td style={{ padding: '6px 8px', color: '#f8fafc', fontWeight: '700' }}>{row.item_name || '-'}</td>
-                        <td style={{ padding: '6px 8px', color: '#38bdf8' }}>{row.category_type}</td>
-                        <td style={{ padding: '6px 8px', textAlign: 'center', color: '#94a3b8' }}>{row.qty} {row.unit}</td>
-                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8' }}>{formatRupiah(row.price_per_unit)}</td>
-                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#fb7185', fontWeight: '800' }}>{formatRupiah(row.subtotal)}</td>
+                      <tr key={idx} style={{ borderBottom: `1px solid ${T.border}` }}>
+                        <td style={{ padding: '6px 8px', color: T.txtPrimary, fontWeight: '700' }}>{row.item_name || '-'}</td>
+                        <td style={{ padding: '6px 8px', color: T.primary }}>{row.category_type}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'center', color: T.txtSecondary }}>{row.qty} {row.unit}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', color: T.txtSecondary }}>{formatRupiah(row.price_per_unit)}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#b91c1c', fontWeight: '800' }}>{formatRupiah(row.subtotal)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1207,21 +1500,21 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
             {/* RIWAYAT EDIT KETERANGAN / ALASAN PERUBAHAN */}
             {detailModalItem.edit_history && detailModalItem.edit_history.length > 0 && (
-              <div style={{ background: 'rgba(56, 189, 248, 0.08)', padding: '14px', borderRadius: '12px', border: '1px solid #38bdf8' }}>
-                <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#38bdf8', marginBottom: '8px' }}>
+              <div style={{ background: T.controlBg, padding: '14px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.primary, marginBottom: '8px' }}>
                   Riwayat Perubahan &amp; Keterangan Alasan Edit:
                 </div>
                 {detailModalItem.edit_history.map((log, idx) => (
-                  <div key={idx} style={{ fontSize: '0.78rem', color: '#f8fafc', marginBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '4px' }}>
+                  <div key={idx} style={{ fontSize: '0.78rem', color: T.txtPrimary, marginBottom: '6px', borderBottom: `1px solid ${T.border}`, paddingBottom: '4px' }}>
                     <div><strong>[{log.timestamp}] Edit oleh {log.edited_by}:</strong></div>
-                    <div style={{ color: '#94a3b8', marginTop: '2px' }}>&quot;{log.reason}&quot;</div>
+                    <div style={{ color: T.txtSecondary, marginTop: '2px' }}>&quot;{log.reason}&quot;</div>
                   </div>
                 ))}
               </div>
             )}
 
             <div style={{ textAlign: 'right' }}>
-              <button onClick={() => setDetailModalItem(null)} style={{ padding: '8px 18px', background: '#334155', border: 'none', borderRadius: '8px', color: '#f8fafc', fontWeight: '800', cursor: 'pointer' }}>
+              <button onClick={() => setDetailModalItem(null)} style={{ padding: '8px 18px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontWeight: '800', cursor: 'pointer' }}>
                 Tutup Window
               </button>
             </div>

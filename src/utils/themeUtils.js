@@ -8,97 +8,97 @@
  *   'soft_blue'  — Soft classic blue-sky, high-contrast, professional
  */
 export function getThemePalette(themeMode) {
-  const isSoftBlue = themeMode === 'soft_blue';
-  const isLight = isSoftBlue; // legacy compat alias — many components check `isLight`
+  const isDark = themeMode === 'dark';
+  const isCalmSage = !isDark; // Default utama: Calm Sage
+  const isLight = isCalmSage;
 
-  if (isSoftBlue) return {
+  // ── 1. Calm Sage & Soft Mint Theme (Fresh, Calm, Eye-Friendly - Default) ──
+  if (isCalmSage) return {
     // ── Backgrounds ──
-    appBg:          '#ddeeff',
-    pageBg:         '#ddeeff',
+    appBg:          '#f3f7f4',
+    pageBg:         '#f3f7f4',
     cardBg:         '#ffffff',
-    cardBg2:        '#eaf4ff',
+    cardBg2:        '#eaf2ec',
     inputBg:        '#ffffff',
-    controlBg:      '#eaf4ff',
+    controlBg:      '#eef5f0',
     dropdownBg:     '#ffffff',
-    hoverBg:        'rgba(30, 90, 160, 0.07)',
+    hoverBg:        'rgba(45, 122, 91, 0.07)',
     tableBg:        '#ffffff',
-    tableHeaderBg:  '#c7e0f9',
-    tableRowHover:  'rgba(30, 90, 160, 0.06)',
-    tableStripeBg:  '#eaf4ff',
+    tableHeaderBg:  '#dceee3',
+    tableRowHover:  'rgba(45, 122, 91, 0.05)',
+    tableStripeBg:  '#f5faf7',
 
     // ── Text ──
-    txtPrimary:     '#0c1f3d',
-    txtSecondary:   '#1e4a7c',
-    txtMuted:       '#456b9a',
+    txtPrimary:     '#152e22',
+    txtSecondary:   '#28533f',
+    txtMuted:       '#587c6b',
     txtInverse:     '#ffffff',
-    txtLabel:       '#1e3a5f',
+    txtLabel:       '#1f4232',
 
     // ── Borders ──
-    border:         '#b0ccec',
-    borderStrong:   '#7aaad4',
-    borderHover:    '#3b82c4',
-    divider:        '#c3d9f0',
+    border:         '#c8ded1',
+    borderStrong:   '#9ec4ad',
+    borderHover:    '#2d7a5b',
+    divider:        '#d5e6dc',
 
     // ── Brand Accents ──
-    accentGold:     '#1a6fc4',
-    accentGoldHover:'#145ea8',
-    accentGoldBg:   'rgba(26, 111, 196, 0.10)',
-    accentGoldBorder:'rgba(26, 111, 196, 0.28)',
-    accentGreen:    '#0d5fa3',
-    accentGreenBg:  'rgba(13, 95, 163, 0.10)',
+    accentGold:     '#2d7a5b',
+    accentGoldHover:'#226046',
+    accentGoldBg:   'rgba(45, 122, 91, 0.10)',
+    accentGoldBorder:'rgba(45, 122, 91, 0.28)',
+    accentGreen:    '#2d7a5b',
+    accentGreenBg:  'rgba(45, 122, 91, 0.10)',
 
     // ── Semantic Colors ──
-    success:        '#0a7c4e',
-    successBg:      'rgba(10, 124, 78, 0.10)',
-    successBorder:  'rgba(10, 124, 78, 0.25)',
-    danger:         '#c0152b',
-    dangerBg:       'rgba(192, 21, 43, 0.10)',
-    dangerBorder:   'rgba(192, 21, 43, 0.25)',
+    success:        '#15803d',
+    successBg:      'rgba(21, 128, 61, 0.10)',
+    successBorder:  'rgba(21, 128, 61, 0.25)',
+    danger:         '#b91c1c',
+    dangerBg:       'rgba(185, 28, 28, 0.10)',
+    dangerBorder:   'rgba(185, 28, 28, 0.25)',
     warning:        '#b45309',
     warningBg:      'rgba(180, 83, 9, 0.10)',
     warningBorder:  'rgba(180, 83, 9, 0.25)',
-    info:           '#1a6fc4',
-    infoBg:         'rgba(26, 111, 196, 0.10)',
-    infoBorder:     'rgba(26, 111, 196, 0.25)',
+    info:           '#0e7490',
+    infoBg:         'rgba(14, 116, 144, 0.10)',
+    infoBorder:     'rgba(14, 116, 144, 0.25)',
 
     // ── Navigation / Active ──
-    navActiveBg:    'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)',
+    navActiveBg:    'linear-gradient(135deg, #2d7a5b 0%, #1b533c 100%)',
     navActiveTxt:   '#ffffff',
-    navActiveShadow:'rgba(26, 111, 196, 0.30)',
-    primary:        '#1a6fc4',
-    primaryBtn:     'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)',
-    primaryBtnShadow:'rgba(26, 111, 196, 0.25)',
+    navActiveShadow:'rgba(45, 122, 91, 0.30)',
+    primary:        '#2d7a5b',
+    primaryBtn:     'linear-gradient(135deg, #2d7a5b 0%, #1b533c 100%)',
+    primaryBtnShadow:'rgba(45, 122, 91, 0.25)',
 
     // ── Shadows ──
-    shadowSm:       '0 1px 4px rgba(10, 40, 80, 0.10)',
-    shadowMd:       '0 4px 16px rgba(10, 40, 80, 0.13)',
-    shadowLg:       '0 8px 32px rgba(10, 40, 80, 0.18)',
+    shadowSm:       '0 1px 4px rgba(21, 46, 34, 0.08)',
+    shadowMd:       '0 4px 16px rgba(21, 46, 34, 0.10)',
+    shadowLg:       '0 8px 32px rgba(21, 46, 34, 0.15)',
 
     // ── Chart / Tooltip ──
-    tooltipBg:      '#0c1f3d',
-    tooltipBorder:  '#1a6fc4',
+    tooltipBg:      '#152e22',
+    tooltipBorder:  '#2d7a5b',
     tooltipColor:   '#ffffff',
-    gridColor:      '#c7e0f9',
-    axisColor:      '#456b9a',
-    chartColors:    ['#1a6fc4', '#0a7c4e', '#b45309', '#7c3aed', '#c0152b', '#0891b2'],
+    gridColor:      '#dceee3',
+    axisColor:      '#587c6b',
+    chartColors:    ['#2d7a5b', '#0e7490', '#b45309', '#7c3aed', '#b91c1c', '#15803d'],
 
     // ── Tab Styles ──
-    tabActiveBg:    'linear-gradient(135deg, #1a6fc4, #0d5295)',
+    tabActiveBg:    'linear-gradient(135deg, #2d7a5b, #1b533c)',
     tabActiveColor: '#ffffff',
-    tabInactiveBg:  '#eaf4ff',
-    tabInactiveColor:'#1e4a7c',
-    tabBorder:      '#b0ccec',
+    tabInactiveBg:  '#eaf2ec',
+    tabInactiveColor:'#28533f',
+    tabBorder:      '#c8ded1',
 
-    // ── Professional Typography Scale ──
+    // ── Typography & Shadows ──
     fsTitle:        'var(--fs-2xl)',
     fsSubtitle:     'var(--fs-sm)',
     fsBody:         'var(--fs-base)',
     fsBadge:        'var(--fs-xs)',
     fsCaption:      'var(--fs-xs)',
-    borderUltraThin:'1px solid rgba(30, 90, 160, 0.08)',
-
-    // ── Card shadow ──
-    cardShadow:     '0 2px 8px rgba(10,40,80,0.12), 0 0 0 1px rgba(30,90,160,0.07)',
+    borderUltraThin:'1px solid rgba(45, 122, 91, 0.08)',
+    cardShadow:     '0 2px 8px rgba(21, 46, 34, 0.08), 0 0 0 1px rgba(45, 122, 91, 0.06)',
   };
 
   // Default: Dark theme

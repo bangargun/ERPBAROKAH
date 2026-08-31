@@ -339,44 +339,85 @@ export default function AndroidPosRegister({
 
   // POS State (Default 'Semua' agar seluruh produk baru dari Web Admin langsung terlihat)
   const [activeCategory, setActiveCategory] = useState('Semua');
-  const [appTheme, setAppTheme] = useState(() => localStorage.getItem('mris_pos_theme') || 'dark'); // 'dark' | 'light'
+  // POS Theme State (Default 'calm_sage' - Fresh & Mint)
+  const [appTheme, setAppTheme] = useState(() => localStorage.getItem('mris_pos_theme') || 'calm_sage');
 
   const toggleAppTheme = (newTheme) => {
-    const selected = newTheme || (appTheme === 'dark' ? 'light' : 'dark');
+    let selected = newTheme;
+    if (!selected) {
+      selected = appTheme === 'calm_sage' ? 'dark' : 'calm_sage';
+    }
     setAppTheme(selected);
     localStorage.setItem('mris_pos_theme', selected);
   };
 
-  const isLight = appTheme === 'light';
+  const isCalmSage = appTheme === 'calm_sage';
+  const isLight = isCalmSage;
 
   // ===== THEME TOKEN OBJECT =====
-  // Gunakan T.xxx untuk warna di semua komponen agar mudah toggle dark/light
-  const T = React.useMemo(() => ({
-    bgApp:          isLight ? '#f0f4ff'                          : '#0b0f19',
-    bgSidebar:      isLight ? '#1e3a8a'                          : '#080d1a',
-    bgSidebarActive: isLight ? 'linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-    bgSidebarHover: isLight ? 'rgba(255,255,255,0.12)'           : 'rgba(255,255,255,0.07)',
-    bgSurface:      isLight ? '#ffffff'                          : '#111625',
-    bgCard:         isLight ? '#ffffff'                          : '#131b2e',
-    bgCardHover:    isLight ? '#f8fafc'                          : '#1a243b',
-    bgInput:        isLight ? '#ffffff'                          : '#1a243b',
-    bgHeader:       isLight ? '#ffffff'                          : '#0c1b33',
-    bgModal:        isLight ? '#ffffff'                          : '#131b2e',
-    bgOverlay:      isLight ? 'rgba(15,23,42,0.55)'              : 'rgba(0,0,0,0.75)',
-    bgBadgeUser:    isLight ? 'rgba(37,99,235,0.08)'             : 'rgba(255,255,255,0.1)',
-    txtPrimary:     isLight ? '#0f172a'                          : '#ffffff',
-    txtSecondary:   isLight ? '#1e293b'                          : '#e2e8f0',
-    txtMuted:       isLight ? '#334155'                          : '#cbd5e1',
-    txtSidebarIcon: isLight ? '#f59e0b'                          : '#fbbf24',
-    txtHeaderAccent: isLight ? '#1d4ed8'                         : '#60a5fa',
-    border:         isLight ? '#cbd5e1'                          : 'rgba(255,255,255,0.15)',
-    borderCard:     isLight ? '#cbd5e1'                          : 'rgba(255,255,255,0.15)',
-    borderSubtle:   isLight ? '#94a3b8'                          : '#475569',
-    borderSidebar:  isLight ? 'rgba(255,255,255,0.12)'           : 'rgba(255,255,255,0.08)',
-    shadow:         isLight ? '0 1px 8px rgba(0,0,0,0.08)'       : 'none',
-    shadowCard:     isLight ? '0 4px 16px rgba(0,0,0,0.06)'      : '0 4px 24px rgba(0,0,0,0.4)',
-    scrollTrack:    isLight ? '#e2e8f0'                          : '#1e293b',
-  }), [isLight]);
+  // Gunakan T.xxx untuk warna di semua komponen POS agar adaptif dengan tema Calm Sage dan Deep Dark
+  const T = React.useMemo(() => {
+    if (isCalmSage) {
+      return {
+        bgApp:          '#f3f7f4',
+        bgSidebar:      '#152e22',
+        bgSidebarActive: 'linear-gradient(135deg, #2d7a5b 0%, #1b533c 100%)',
+        bgSidebarHover: 'rgba(255,255,255,0.10)',
+        bgSurface:      '#ffffff',
+        bgCard:         '#ffffff',
+        bgCardHover:    '#eaf2ec',
+        bgInput:        '#ffffff',
+        bgHeader:       '#ffffff',
+        bgModal:        '#ffffff',
+        bgOverlay:      'rgba(21,46,34,0.60)',
+        bgBadgeUser:    'rgba(45,122,91,0.12)',
+        txtPrimary:     '#152e22',
+        txtSecondary:   '#28533f',
+        txtMuted:       '#587c6b',
+        txtSidebarIcon: '#10b981',
+        txtHeaderAccent: '#2d7a5b',
+        border:         '#c8ded1',
+        borderCard:     '#c8ded1',
+        borderSubtle:   '#9ec4ad',
+        borderSidebar:  'rgba(255,255,255,0.12)',
+        primary:        '#2d7a5b',
+        primaryBtn:     'linear-gradient(135deg, #2d7a5b 0%, #1b533c 100%)',
+        shadow:         '0 1px 6px rgba(21,46,34,0.08)',
+        shadowCard:     '0 4px 16px rgba(21,46,34,0.08)',
+        scrollTrack:    '#eaf2ec',
+      };
+    }
+
+    // Default Deep Dark Mode
+    return {
+      bgApp:          '#0b0f19',
+      bgSidebar:      '#080d1a',
+      bgSidebarActive: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+      bgSidebarHover: 'rgba(255,255,255,0.07)',
+      bgSurface:      '#111625',
+      bgCard:         '#131b2e',
+      bgCardHover:    '#1a243b',
+      bgInput:        '#1a243b',
+      bgHeader:       '#0c1b33',
+      bgModal:        '#131b2e',
+      bgOverlay:      'rgba(0,0,0,0.75)',
+      bgBadgeUser:    'rgba(255,255,255,0.1)',
+      txtPrimary:     '#ffffff',
+      txtSecondary:   '#e2e8f0',
+      txtMuted:       '#cbd5e1',
+      txtSidebarIcon: '#fbbf24',
+      txtHeaderAccent: '#60a5fa',
+      border:         'rgba(255,255,255,0.15)',
+      borderCard:     'rgba(255,255,255,0.15)',
+      borderSubtle:   '#475569',
+      borderSidebar:  'rgba(255,255,255,0.08)',
+      primary:        '#3b82f6',
+      primaryBtn:     'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+      shadow:         'none',
+      shadowCard:     '0 4px 24px rgba(0,0,0,0.4)',
+      scrollTrack:    '#1e293b',
+    };
+  }, [isCalmSage]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState(() => {
@@ -4790,14 +4831,14 @@ export default function AndroidPosRegister({
               </div>
             )}
 
-            {/* THEME TOGGLE BUTTON (MODE GELAP VS MODE TERANG) */}
+            {/* THEME TOGGLE BUTTON (CALM SAGE VS DARK) */}
             <button
               type="button"
               onClick={() => toggleAppTheme()}
               style={{
-                background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.1)',
-                border: isLight ? '1.5px solid #cbd5e1' : '1px solid rgba(255,255,255,0.2)',
-                color: isLight ? '#0f172a' : '#ffffff',
+                background: isCalmSage ? '#eaf2ec' : 'rgba(255,255,255,0.1)',
+                border: isCalmSage ? '1.5px solid #9ec4ad' : '1px solid rgba(255,255,255,0.2)',
+                color: isCalmSage ? '#152e22' : '#ffffff',
                 padding: '5px 12px',
                 borderRadius: '8px',
                 fontSize: '0.78rem',
@@ -4806,11 +4847,11 @@ export default function AndroidPosRegister({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                boxShadow: isLight ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
+                boxShadow: isCalmSage ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
               }}
-              title="Ganti Tema Tampilan (Mode Terang vs Mode Gelap)"
+              title="Ganti Tema POS Kasir (🌿 Calm Sage vs 🌙 Mode Gelap)"
             >
-              {isLight ? <span>Mode Terang</span> : <span>Mode Gelap</span>}
+              {isCalmSage ? <span>🌿 Calm Sage (Fresh & Mint)</span> : <span>🌙 Mode Gelap</span>}
             </button>
 
 
@@ -6227,7 +6268,7 @@ export default function AndroidPosRegister({
               forceOutletId={currentOutlet?.id}
               forceKitchenOnly={true}
               isPosMobile={true}
-              themeMode={appTheme === 'soft_blue' ? 'soft_blue' : 'dark'}
+              themeMode={isCalmSage ? 'calm_sage' : 'dark'}
             />
           </div>
         )}
@@ -8655,53 +8696,55 @@ export default function AndroidPosRegister({
                       Pengaturan Umum POS Mobile
                     </h2>
 
-                    {/* PILIHAN TEMA TAMPILAN (MODE GELAP VS MODE TERANG) */}
+                    {/* PILIHAN TEMA TAMPILAN (CALM SAGE VS GELAP VS SOFT BLUE) */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <label style={{ fontSize: '0.90rem', fontWeight: '800', color: isLight ? '#0f172a' : '#f8fafc' }}>
-                        Tema Tampilan Aplikasi (Theme Mode)
+                      <label style={{ fontSize: '0.90rem', fontWeight: '800', color: T.txtPrimary }}>
+                        Tema Tampilan Aplikasi POS (Theme Mode)
                       </label>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', maxWidth: '440px' }}>
-                        {/* MODE GELAP CARD */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', maxWidth: '600px' }}>
+                        
+                        {/* 1. CALM SAGE CARD (DEFAULT REKOMENDASI) */}
                         <div
-                          onClick={() => toggleAppTheme('dark')}
+                          onClick={() => toggleAppTheme('calm_sage')}
                           style={{
-                            background: !isLight ? 'linear-gradient(135deg, rgba(37,99,235,0.2) 0%, rgba(15,23,42,0.9) 100%)' : '#ffffff',
-                            border: !isLight ? '2px solid #2563eb' : '1.5px solid #cbd5e1',
+                            background: isCalmSage ? 'linear-gradient(135deg, rgba(45,122,91,0.15) 0%, #ffffff 100%)' : T.cardBg,
+                            border: isCalmSage ? '2.5px solid #2d7a5b' : `1.5px solid ${T.border}`,
                             borderRadius: '16px',
-                            padding: '18px 14px',
+                            padding: '16px 12px',
                             textAlign: 'center',
                             cursor: 'pointer',
                             transition: 'all 0.2s ease',
-                            boxShadow: !isLight ? '0 8px 20px rgba(37,99,235,0.25)' : 'none'
+                            boxShadow: isCalmSage ? '0 8px 20px rgba(45,122,91,0.2)' : 'none'
                           }}
                         >
-                          <div style={{ fontSize: '1.8rem', marginBottom: '6px' }}></div>
-                          <div style={{ fontWeight: '900', color: !isLight ? '#ffffff' : 'var(--pos-bg-app)', fontSize: '0.90rem' }}>Mode Gelap (Dark)</div>
-                          <span style={{ fontSize: '0.70rem', color: !isLight ? '#60a5fa' : '#64748b', fontWeight: '800', marginTop: '4px', display: 'inline-block' }}>
-                            {!isLight ? 'Aktif (Default)' : 'Sleek Dark Mode'}
+                          <div style={{ fontSize: '1.6rem', marginBottom: '4px' }}>🌿</div>
+                          <div style={{ fontWeight: '900', color: isCalmSage ? '#2d7a5b' : T.txtPrimary, fontSize: '0.88rem' }}>Calm Sage</div>
+                          <span style={{ fontSize: '0.68rem', color: isCalmSage ? '#2d7a5b' : T.txtMuted, fontWeight: '800', marginTop: '4px', display: 'inline-block' }}>
+                            {isCalmSage ? '● Aktif (Fresh & Mint)' : 'Fresh & Mint Theme'}
                           </span>
                         </div>
 
-                        {/* MODE TERANG CARD */}
+                        {/* 2. MODE GELAP CARD */}
                         <div
-                          onClick={() => toggleAppTheme('light')}
+                          onClick={() => toggleAppTheme('dark')}
                           style={{
-                            background: isLight ? 'linear-gradient(135deg, rgba(56,189,248,0.15) 0%, rgba(255,255,255,0.95) 100%)' : '#1f2937',
-                            border: isLight ? '2px solid #0284c7' : '1.5px solid #374151',
+                            background: appTheme === 'dark' ? 'linear-gradient(135deg, rgba(37,99,235,0.2) 0%, rgba(15,23,42,0.9) 100%)' : T.cardBg,
+                            border: appTheme === 'dark' ? '2.5px solid #2563eb' : `1.5px solid ${T.border}`,
                             borderRadius: '16px',
-                            padding: '18px 14px',
+                            padding: '16px 12px',
                             textAlign: 'center',
                             cursor: 'pointer',
                             transition: 'all 0.2s ease',
-                            boxShadow: isLight ? '0 8px 20px rgba(2,132,199,0.2)' : 'none'
+                            boxShadow: appTheme === 'dark' ? '0 8px 20px rgba(37,99,235,0.25)' : 'none'
                           }}
                         >
-                          <div style={{ fontSize: '1.8rem', marginBottom: '6px' }}></div>
-                          <div style={{ fontWeight: '900', color: isLight ? '#0f172a' : '#ffffff', fontSize: '0.90rem' }}>Mode Terang (Light)</div>
-                          <span style={{ fontSize: '0.70rem', color: isLight ? '#0284c7' : '#94a3b8', fontWeight: '800', marginTop: '4px', display: 'inline-block' }}>
-                            {isLight ? 'Aktif' : 'Premium Light Mode'}
+                          <div style={{ fontSize: '1.6rem', marginBottom: '4px' }}>🌙</div>
+                          <div style={{ fontWeight: '900', color: appTheme === 'dark' ? '#60a5fa' : T.txtPrimary, fontSize: '0.88rem' }}>Mode Gelap</div>
+                          <span style={{ fontSize: '0.68rem', color: appTheme === 'dark' ? '#60a5fa' : T.txtMuted, fontWeight: '800', marginTop: '4px', display: 'inline-block' }}>
+                            {appTheme === 'dark' ? '● Aktif' : 'Deep Navy Glass'}
                           </span>
                         </div>
+
                       </div>
                     </div>
 

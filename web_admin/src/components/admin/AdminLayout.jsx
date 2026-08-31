@@ -64,35 +64,11 @@ export default function AdminLayout({
   const [showUpdateLaporanModal, setShowUpdateLaporanModal] = useState(false);
   const [showSalesImportModal, setShowSalesImportModal] = useState(false);
   const [showExpenseImportModal, setShowExpenseImportModal] = useState(false);
-  const [showInboxDropdown, setShowInboxDropdown] = useState(false);
-  const [readNotifIds, setReadNotifIds] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('mris_read_notif_ids');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
-    }
-    return [];
-  });
 
-  const markNotifAsRead = (id) => {
-    setReadNotifIds(prev => {
-      if (prev.includes(id)) return prev;
-      const next = [...prev, id];
-      try { localStorage.setItem('mris_read_notif_ids', JSON.stringify(next)); } catch (e) {}
-      return next;
-    });
-  };
-
-  const handleMarkAllRead = () => {
-    const allIds = inboxNotifications.map(n => n.id);
-    setReadNotifIds(allIds);
-    try { localStorage.setItem('mris_read_notif_ids', JSON.stringify(allIds)); } catch (e) {}
-  };
-
-  const isLight = themeMode === 'soft_blue';
-  const isSoftBlue = themeMode === 'soft_blue';
-  const isWarmMinimalist = false; // tema ini sudah dihapus
+  const isCalmSage = themeMode === 'calm_sage';
+  const isSoftBlue = false;
+  const isLight = isCalmSage;
+  const isWarmMinimalist = false;
 
   const T = getThemePalette(themeMode);
 
@@ -179,75 +155,14 @@ export default function AdminLayout({
     hour12: false
   }) + ' WIB';
 
-  // GENERATE INBOX NOTIFICATIONS FROM REAL-TIME POS DATA PUSH
-  const inboxNotifications = useMemo(() => {
-    const list = [];
-    const salesTx = masterData?.salesTransactions || masterData?.recentTransactions || [];
-    const closings = masterData?.approvedFinanceDaily || masterData?.shift_closings || [];
-    const logistics = masterData?.approvedLogistics || masterData?.stockOpname || [];
-
-    // 1. Sales POS notifications
-    salesTx.slice(0, 5).forEach((tx, idx) => {
-      const timeDisplay = tx.time ? `${tx.date || ''} ${tx.time}` : (tx.timestamp ? new Date(tx.timestamp).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (tx.date || 'Baru saja'));
-      list.push({
-        id: `tx-${tx.id || idx}`,
-        type: 'pos_sale',
-        icon: ShoppingCart,
-        color: T.success,
-        title: `Transaksi POS Baru #${tx.id || (idx + 1)}`,
-        subtitle: `Total Rp ${(tx.amount || 0).toLocaleString('id-ID')} • ${tx.payment_method || 'Kasir'}`,
-        time: timeDisplay,
-        outlet: tx.branch_name || 'Outlet Restoran'
-      });
-    });
-
-    // 2. Closing Shift notifications
-    closings.slice(0, 3).forEach((cs, idx) => {
-      const timeDisplay = cs.time ? `${cs.date || ''} ${cs.time}` : (cs.timestamp ? new Date(cs.timestamp).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (cs.date || 'Hari ini'));
-      list.push({
-        id: `cs-${cs.id || idx}`,
-        type: 'shift_close',
-        icon: Clock,
-        color: T.info,
-        title: `Penutupan Shift Kasir (${cs.kasir_name || cs.cashier || 'Kasir'})`,
-        subtitle: `Net Sales: Rp ${(cs.net_sales || cs.total_omzet || 0).toLocaleString('id-ID')}`,
-        time: timeDisplay,
-        outlet: cs.outlet_name || 'Outlet Restoran'
-      });
-    });
-
-    // 3. Stock Audit / Logistics notifications
-    logistics.slice(0, 3).forEach((lg, idx) => {
-      const timeDisplay = lg.time ? `${lg.date || ''} ${lg.time}` : (lg.timestamp ? new Date(lg.timestamp).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (lg.date || 'Baru saja'));
-      list.push({
-        id: `lg-${lg.id || idx}`,
-        type: 'logistics',
-        icon: CheckSquare,
-        color: T.warning,
-        title: `Audit Stok / Pengajuan Logistik`,
-        subtitle: `Status: ${lg.status || 'Pending'} • ${lg.notes || 'Pencatatan Bahan'}`,
-        time: timeDisplay,
-        outlet: lg.outlet_name || 'Outlet Restoran'
-      });
-    });
-
-    return list;
-  }, [masterData]);
-
-  const unreadNotifCount = useMemo(() => {
-    return inboxNotifications.filter(n => !readNotifIds.includes(n.id)).length;
-  }, [inboxNotifications, readNotifIds]);
-
-
-
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', background: T.appBg, color: T.txtPrimary }}>
       
       {/* Sidebar Navigation */}
       <aside style={{
         width: '260px',
-        background: isSoftBlue ? '#0d3268' : '#120f09',
-        borderRight: isSoftBlue ? '1px solid rgba(255, 255, 255, 0.10)' : '1px solid rgba(251, 191, 36, 0.25)',
+        background: isCalmSage ? '#0f291e' : (isSoftBlue ? '#0d3268' : '#120f09'),
+        borderRight: isCalmSage ? '1px solid rgba(255, 255, 255, 0.08)' : (isSoftBlue ? '1px solid rgba(255, 255, 255, 0.10)' : '1px solid rgba(251, 191, 36, 0.25)'),
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
@@ -258,7 +173,7 @@ export default function AdminLayout({
         {/* Brand Header */}
         <div style={{
           padding: '16px 20px',
-          borderBottom: isSoftBlue ? '1px solid rgba(255, 255, 255, 0.10)' : '1px solid rgba(251, 191, 36, 0.15)',
+          borderBottom: isCalmSage ? '1px solid rgba(255, 255, 255, 0.08)' : (isSoftBlue ? '1px solid rgba(255, 255, 255, 0.10)' : '1px solid rgba(251, 191, 36, 0.15)'),
           display: 'flex',
           alignItems: 'center',
           gap: '12px'
@@ -267,20 +182,20 @@ export default function AdminLayout({
             width: '36px',
             height: '36px',
             borderRadius: '10px',
-            background: isSoftBlue ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            background: isCalmSage ? 'linear-gradient(135deg, #2d7a5b 0%, #1b533c 100%)' : (isSoftBlue ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'),
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#ffffff',
             fontWeight: '900',
             fontSize: '1.1rem',
-            boxShadow: isSoftBlue ? '0 4px 14px rgba(26, 111, 196, 0.45)' : '0 4px 14px rgba(245, 158, 11, 0.45)'
+            boxShadow: isCalmSage ? '0 4px 14px rgba(45, 122, 91, 0.45)' : (isSoftBlue ? '0 4px 14px rgba(26, 111, 196, 0.45)' : '0 4px 14px rgba(245, 158, 11, 0.45)')
           }}>
             <UtensilsCrossed size={20} />
           </div>
           <div>
-            <h1 style={{ fontSize: '0.96rem', fontWeight: '900', color: isSoftBlue ? '#ffffff' : '#f59e0b', margin: 0, letterSpacing: '0.04em' }}>BAROKAH GROUP</h1>
-            <span style={{ fontSize: '0.62rem', color: isSoftBlue ? '#90cdf4' : '#fbbf24', fontWeight: '800', letterSpacing: '0.06em' }}>RESTAURANT MANAGEMENT SYSTEM</span>
+            <h1 style={{ fontSize: '0.96rem', fontWeight: '900', color: isCalmSage ? '#ffffff' : (isSoftBlue ? '#ffffff' : '#f59e0b'), margin: 0, letterSpacing: '0.04em' }}>BAROKAH GROUP</h1>
+            <span style={{ fontSize: '0.62rem', color: isCalmSage ? '#86efac' : (isSoftBlue ? '#90cdf4' : '#fbbf24'), fontWeight: '800', letterSpacing: '0.06em' }}>RESTAURANT MANAGEMENT SYSTEM</span>
           </div>
         </div>
 
@@ -302,8 +217,8 @@ export default function AdminLayout({
                 width: '100%',
                 padding: '11px 14px',
                 borderRadius: '12px',
-                border: isSoftBlue ? '1px solid rgba(255, 255, 255, 0.20)' : '1px solid rgba(251, 191, 36, 0.65)',
-                background: isSoftBlue ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 60%, #b45309 100%)',
+                border: isCalmSage ? '1px solid rgba(255, 255, 255, 0.15)' : (isSoftBlue ? '1px solid rgba(255, 255, 255, 0.20)' : '1px solid rgba(251, 191, 36, 0.65)'),
+                background: isCalmSage ? 'linear-gradient(135deg, #2d7a5b 0%, #1b533c 100%)' : (isSoftBlue ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 60%, #b45309 100%)'),
                 color: '#ffffff',
                 fontWeight: '900',
                 fontSize: '0.84rem',
@@ -312,7 +227,7 @@ export default function AdminLayout({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '9px',
-                boxShadow: isSoftBlue ? '0 4px 18px rgba(26, 111, 196, 0.40)' : '0 4px 18px rgba(245, 158, 11, 0.45)',
+                boxShadow: isCalmSage ? '0 4px 18px rgba(45, 122, 91, 0.40)' : (isSoftBlue ? '0 4px 18px rgba(26, 111, 196, 0.40)' : '0 4px 18px rgba(245, 158, 11, 0.45)'),
                 transition: 'all 0.2s ease',
                 letterSpacing: '0.01em'
               }}
@@ -345,7 +260,7 @@ export default function AdminLayout({
                 <div style={{
                   fontSize: '0.62rem',
                   textTransform: 'uppercase',
-                  color: isSoftBlue ? '#7eb3e6' : '#facc15',
+                  color: isCalmSage ? '#86efac' : (isSoftBlue ? '#7eb3e6' : '#facc15'),
                   fontWeight: '900',
                   padding: '4px 10px 2px 10px',
                   letterSpacing: '0.08em',
@@ -372,32 +287,32 @@ export default function AdminLayout({
                         padding: '9px 12px',
                         borderRadius: '10px',
                         border: isActive
-                          ? (isSoftBlue ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid #fbbf24')
+                          ? (isCalmSage ? '1px solid rgba(255, 255, 255, 0.25)' : (isSoftBlue ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid #fbbf24'))
                           : '1px solid transparent',
                         background: isActive
-                          ? (isSoftBlue ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)')
+                          ? (isCalmSage ? 'linear-gradient(135deg, #2d7a5b 0%, #1b533c 100%)' : (isSoftBlue ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'))
                           : 'transparent',
                         color: isActive
                           ? '#ffffff'
-                          : (isSoftBlue ? '#c3d9f0' : '#fbbf24'),
+                          : (isCalmSage ? '#a7d4bf' : (isSoftBlue ? '#c3d9f0' : '#fbbf24')),
                         fontWeight: isActive ? '900' : '800',
                         fontSize: '0.82rem',
                         cursor: 'pointer',
                         textAlign: 'left',
                         boxShadow: isActive
-                          ? (isSoftBlue ? '0 4px 16px rgba(26, 111, 196, 0.40)' : '0 4px 16px rgba(245, 158, 11, 0.45)')
+                          ? (isCalmSage ? '0 4px 16px rgba(45, 122, 91, 0.45)' : (isSoftBlue ? '0 4px 16px rgba(26, 111, 196, 0.40)' : '0 4px 16px rgba(245, 158, 11, 0.45)'))
                           : 'none',
                         transition: 'all 0.18s ease'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <Icon size={17} color={isActive ? '#ffffff' : (isSoftBlue ? '#c3d9f0' : '#fbbf24')} />
-                        <span style={{ color: isActive ? '#ffffff' : (isSoftBlue ? '#c3d9f0' : '#fbbf24'), fontWeight: isActive ? '900' : '800' }}>{item.label}</span>
+                        <Icon size={17} color={isActive ? '#ffffff' : (isCalmSage ? '#a7d4bf' : (isSoftBlue ? '#c3d9f0' : '#fbbf24'))} />
+                        <span style={{ color: isActive ? '#ffffff' : (isCalmSage ? '#a7d4bf' : (isSoftBlue ? '#c3d9f0' : '#fbbf24')), fontWeight: isActive ? '900' : '800' }}>{item.label}</span>
                       </div>
                       {item.id === 'stock' && pendingCount > 0 && (
                         <span style={{
-                          background: isActive ? '#ffffff' : (isSoftBlue ? '#ef4444' : '#fbbf24'),
-                          color: isActive ? (isSoftBlue ? '#0d5295' : '#92400e') : (isSoftBlue ? '#ffffff' : '#000000'),
+                          background: isActive ? '#ffffff' : (isCalmSage ? '#ef4444' : (isSoftBlue ? '#ef4444' : '#fbbf24')),
+                          color: isActive ? (isCalmSage ? '#1b533c' : (isSoftBlue ? '#0d5295' : '#92400e')) : '#ffffff',
                           fontSize: '0.66rem', fontWeight: '900', padding: '2px 7px', borderRadius: '10px'
                         }}>
                           {pendingCount}
@@ -412,13 +327,13 @@ export default function AdminLayout({
         </nav>
 
         {/* User Profile Footer */}
-        <div style={{ padding: '14px 16px', borderTop: isSoftBlue ? '1px solid rgba(255, 255, 255, 0.12)' : `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: isSoftBlue ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, #d97706 0%, #b45309 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.82rem', color: '#ffffff', border: isSoftBlue ? '1px solid rgba(255,255,255,0.25)' : '1px solid #f59e0b', flexShrink: 0 }}>
+        <div style={{ padding: '14px 16px', borderTop: isCalmSage ? '1px solid rgba(255, 255, 255, 0.08)' : (isSoftBlue ? '1px solid rgba(255, 255, 255, 0.12)' : `1px solid ${T.border}`), display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: isCalmSage ? 'linear-gradient(135deg, #2d7a5b 0%, #1b533c 100%)' : (isSoftBlue ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, #d97706 0%, #b45309 100%)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.82rem', color: '#ffffff', border: isCalmSage ? '1px solid rgba(255,255,255,0.25)' : (isSoftBlue ? '1px solid rgba(255,255,255,0.25)' : '1px solid #f59e0b'), flexShrink: 0 }}>
             {userInitial}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '0.80rem', fontWeight: '800', color: isSoftBlue ? '#ffffff' : '#f59e0b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</div>
-            <div style={{ fontSize: '0.66rem', color: isSoftBlue ? '#90cdf4' : '#f59e0b', fontWeight: '700', opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userRole} • {userOutlet}</div>
+            <div style={{ fontSize: '0.80rem', fontWeight: '800', color: (isCalmSage || isSoftBlue) ? '#ffffff' : '#f59e0b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</div>
+            <div style={{ fontSize: '0.66rem', color: isCalmSage ? '#86efac' : (isSoftBlue ? '#90cdf4' : '#f59e0b'), fontWeight: '700', opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userRole} • {userOutlet}</div>
           </div>
           {onLogout && (
             <button
@@ -473,18 +388,18 @@ export default function AdminLayout({
           {/* Right Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
             
-            {/* 1. THEME SWITCHER DROPDOWN (DARK / SOFT BLUE) */}
+            {/* 1. THEME SWITCHER DROPDOWN (DARK / CALM SAGE) */}
             <div style={{ position: 'relative' }}>
               <select
                 value={themeMode}
                 onChange={(e) => setThemeMode ? setThemeMode(e.target.value) : toggleThemeMode()}
                 title="Pilih Tema Tampilan Web Admin"
                 style={{
-                  padding: '7px 28px 7px 12px',
-                  background: T.controlBg,
+                  padding: '7px 30px 7px 12px',
+                  background: isCalmSage ? '#eaf2ec' : T.controlBg,
                   border: `1px solid ${T.border}`,
                   borderRadius: '10px',
-                  color: isSoftBlue ? '#1a6fc4' : '#f59e0b',
+                  color: isCalmSage ? '#2d7a5b' : '#f59e0b',
                   fontSize: '0.78rem',
                   fontWeight: '800',
                   cursor: 'pointer',
@@ -493,10 +408,10 @@ export default function AdminLayout({
                   transition: 'all 0.15s ease'
                 }}
               >
+                <option value="calm_sage" style={{ background: '#eaf2ec', color: '#152e22' }}>🌿 Calm Sage (Fresh & Mint)</option>
                 <option value="dark" style={{ background: '#1e293b', color: '#f8fafc' }}>🌙 Mode Gelap (Dark)</option>
-                <option value="soft_blue" style={{ background: '#eaf4ff', color: '#0c1f3d' }}>☁️ Soft Blue (Klasik)</option>
               </select>
-              <Palette size={14} color={isSoftBlue ? '#1a6fc4' : '#f59e0b'} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              <Palette size={14} color={isCalmSage ? '#2d7a5b' : '#f59e0b'} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
             </div>
 
             {/* 2. OUTLET SWITCHER DROPDOWN */}
@@ -525,186 +440,14 @@ export default function AdminLayout({
               <ChevronDown size={14} color={T.txtSecondary} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
             </div>
 
-            {/* 3. INBOX NOTIFIKASI BELL (SUDUT KANAN ATAS) */}
-            <div style={{ position: 'relative' }}>
-              <button
-                type="button"
-                onClick={() => setShowInboxDropdown(!showInboxDropdown)}
-                title="Inbox Notifikasi POS Kasir"
-                style={{
-                  position: 'relative',
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '10px',
-                  background: T.controlBg,
-                  border: `1px solid ${showInboxDropdown ? T.accentGold : T.border}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s'
-                }}
-              >
-                <Bell size={18} color={showInboxDropdown ? T.accentGold : T.txtSecondary} />
-                {unreadNotifCount > 0 && (
-                  <span style={{
-                    position: 'absolute',
-                    top: '-4px',
-                    right: '-4px',
-                    background: T.danger,
-                    color: '#ffffff',
-                    fontSize: '0.64rem',
-                    fontWeight: '900',
-                    borderRadius: '50%',
-                    width: '18px',
-                    height: '18px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 0 8px rgba(239,68,68,0.5)'
-                  }}>
-                    {unreadNotifCount}
-                  </span>
-                )}
-              </button>
-
-              {/* FLOATING INBOX DROPDOWN LIST */}
-              {showInboxDropdown && (
-                <div style={{
-                  position: 'absolute',
-                  top: '48px',
-                  right: 0,
-                  width: '380px',
-                  maxHeight: '480px',
-                  background: T.dropdownBg,
-                  border: `1.5px solid ${T.borderStrong || T.border}`,
-                  borderRadius: '16px',
-                  boxShadow: '0 15px 40px rgba(0,0,0,0.25)',
-                  zIndex: 9999,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  overflow: 'hidden'
-                }}>
-                  {/* Inbox Header */}
-                  <div style={{
-                    padding: '14px 16px',
-                    borderBottom: `1px solid ${T.border}`,
-                    background: isSoftBlue ? 'rgba(26, 111, 196, 0.08)' : (isLight ? 'rgba(217,119,6,0.06)' : 'rgba(245,158,11,0.08)'),
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Inbox size={18} color={T.accentGold} />
-                      <span style={{ fontSize: '0.90rem', fontWeight: '800', color: T.txtPrimary }}>
-                        Inbox Notifikasi POS
-                      </span>
-                      {unreadNotifCount > 0 && (
-                        <span style={{ background: T.danger, color: '#fff', fontSize: '0.65rem', fontWeight: '900', padding: '2px 6px', borderRadius: '10px' }}>
-                          {unreadNotifCount} Baru
-                        </span>
-                      )}
-                    </div>
-                    {unreadNotifCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleMarkAllRead}
-                        style={{ background: 'none', border: 'none', color: T.accentGold, fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
-                      >
-                        Tandai Dibaca
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Notification Items List */}
-                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-                    {inboxNotifications.length === 0 ? (
-                      <div style={{ padding: '32px', textAlign: 'center', color: T.txtMuted, fontSize: '0.82rem' }}>
-                        Belum ada notifikasi transaksi POS baru.
-                      </div>
-                    ) : (
-                      inboxNotifications.map(n => {
-                        const IconComp = n.icon;
-                        const isRead = readNotifIds.includes(n.id);
-                        
-                        const handleNotifClick = () => {
-                          // Mark as read and decrement badge count
-                          markNotifAsRead(n.id);
-                          
-                          // Navigate to corresponding tab
-                          if (n.type === 'pos_sale') {
-                            setActiveTab('sales');
-                          } else if (n.type === 'shift_close') {
-                            setActiveTab('reports');
-                          } else if (n.type === 'logistics') {
-                            setActiveTab('stock');
-                          }
-                          setShowInboxDropdown(false);
-                        };
-
-                        return (
-                          <div
-                            key={n.id}
-                            onClick={handleNotifClick}
-                            title="Klik untuk membuka modul halaman ini"
-                            style={{
-                              padding: '12px 16px',
-                              borderBottom: `1px solid ${T.border}`,
-                              background: isRead ? 'transparent' : isLight ? 'rgba(99,102,241,0.04)' : 'rgba(99,102,241,0.08)',
-                              display: 'flex',
-                              alignItems: 'flex-start',
-                              gap: '12px',
-                              cursor: 'pointer',
-                              transition: 'background 0.15s'
-                            }}
-                          >
-                            <div style={{
-                              width: '34px',
-                              height: '34px',
-                              borderRadius: '10px',
-                              background: `${n.color}20`,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0,
-                              marginTop: '2px'
-                            }}>
-                              <IconComp size={17} color={n.color} />
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <span>{n.title}</span>
-                                <span style={{ fontSize: '0.68rem', color: T.accentGold, fontWeight: '700' }}>Buka →</span>
-                              </div>
-                              <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px' }}>
-                                {n.subtitle}
-                              </div>
-                              <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span>{n.outlet}</span>
-                                <span>•</span>
-                                <span>{n.time}</span>
-                              </div>
-                            </div>
-                            {!isRead && (
-                              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: n.color, marginTop: '6px', flexShrink: 0 }} />
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* Profile Avatar Badge */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 10px 4px 4px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '20px' }}>
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)', color: '#ffffff', fontWeight: '900', fontSize: '0.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: isCalmSage ? 'linear-gradient(135deg, #2d7a5b 0%, #1b533c 100%)' : (isSoftBlue ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, #d97706 0%, #b45309 100%)'), color: '#ffffff', fontWeight: '900', fontSize: '0.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {userInitial}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontSize: '0.76rem', fontWeight: '800', color: T.txtPrimary, lineHeight: '1' }}>{userName}</span>
-                <span style={{ fontSize: '0.64rem', color: T.accentGold, fontWeight: '700', lineHeight: '1', marginTop: '2px' }}>{userRole}</span>
+                <span style={{ fontSize: '0.64rem', color: isCalmSage ? '#2d7a5b' : (isSoftBlue ? '#1a6fc4' : T.accentGold), fontWeight: '700', lineHeight: '1', marginTop: '2px' }}>{userRole}</span>
               </div>
             </div>
           </div>

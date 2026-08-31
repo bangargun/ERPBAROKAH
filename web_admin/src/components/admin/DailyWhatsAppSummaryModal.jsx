@@ -28,6 +28,7 @@ export default function DailyWhatsAppSummaryModal({
   themeMode = 'dark' 
 }) {
   const T = getThemePalette(themeMode);
+  const isLight = themeMode === 'calm_sage' || themeMode === 'soft_blue' || themeMode === 'light';
   const [copied, setCopied] = useState(false);
   const [targetDate, setTargetDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -429,8 +430,8 @@ export default function DailyWhatsAppSummaryModal({
                       justifyContent: 'space-between',
                       padding: '8px 12px',
                       borderRadius: '8px',
-                      background: isEnabled ? (themeMode === 'soft_blue' ? '#e0f2fe' : 'rgba(16,185,129,0.08)') : T.cardBg,
-                      border: `1px solid ${isEnabled ? '#10b981' : T.border}`
+                      background: isEnabled ? (isLight ? 'rgba(45, 122, 91, 0.10)' : 'rgba(16,185,129,0.08)') : T.cardBg,
+                      border: `1px solid ${isEnabled ? T.primary : T.border}`
                     }}
                   >
                     <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', flex: 1 }}>
@@ -438,13 +439,13 @@ export default function DailyWhatsAppSummaryModal({
                         type="checkbox"
                         checked={isEnabled}
                         onChange={() => handleTogglePhone(item.id)}
-                        style={{ width: '16px', height: '16px', accentColor: '#10b981', cursor: 'pointer' }}
+                        style={{ width: '16px', height: '16px', accentColor: T.primary, cursor: 'pointer' }}
                       />
                       <div>
                         <span style={{ fontSize: '0.80rem', fontWeight: '900', color: T.txtPrimary, marginRight: '8px' }}>
                           {item.label}
                         </span>
-                        <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#10b981', fontFamily: 'monospace' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.primary, fontFamily: 'monospace' }}>
                           +{cleanPhone(item.phone)}
                         </span>
                       </div>
@@ -454,7 +455,7 @@ export default function DailyWhatsAppSummaryModal({
                       <button
                         type="button"
                         onClick={() => handleSendSingle(item.phone)}
-                        style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #10b981', background: 'rgba(16,185,129,0.15)', color: '#10b981', fontSize: '0.70rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        style={{ padding: '4px 8px', borderRadius: '6px', border: `1px solid ${T.primary}`, background: T.controlBg, color: T.primary, fontSize: '0.70rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                         title="Kirim hanya ke nomor ini"
                       >
                         <Send size={11} />
@@ -517,7 +518,7 @@ export default function DailyWhatsAppSummaryModal({
               padding: '12px',
               borderRadius: '12px',
               border: `1px solid ${T.border}`,
-              background: themeMode === 'soft_blue' ? '#f0f7ff' : '#0b0f19',
+              background: T.inputBg,
               color: T.txtPrimary,
               fontFamily: 'monospace',
               fontSize: '0.78rem',

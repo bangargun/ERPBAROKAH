@@ -177,12 +177,12 @@ export default function KitchenDisplayPage({
   };
 
   return (
-    <div style={{ flex: 1, padding: '24px', overflowY: 'auto', background: 'var(--pos-bg-app, #090d16)', minHeight: '100vh' }}>
+    <div style={{ flex: 1, padding: '24px', overflowY: 'auto', background: T.appBg, minHeight: '100vh' }}>
       
       {/* HEADER BAR */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px', background: T.cardBg, padding: '16px 20px', borderRadius: '16px', border: `1px solid ${T.border}` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px', background: T.cardBg, padding: '16px 20px', borderRadius: '16px', border: `1px solid ${T.border}`, boxShadow: T.shadowSm }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 4px 14px rgba(245,158,11,0.4)' }}>
+          <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: T.primaryBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: T.primaryBtnShadow ? `0 4px 14px ${T.primaryBtnShadow}` : '0 4px 14px rgba(45, 122, 91, 0.4)' }}>
             <ChefHat size={24} />
           </div>
           <div>

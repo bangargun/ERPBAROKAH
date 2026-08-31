@@ -92,161 +92,137 @@
   --text-dim:          #64748b;
 }
 
-/* ── SOFT BLUE THEME (Klasik, Biru Muda, Profesional) ──
-   Palette: Sky Blue (#ddeeff) backgrounds + Deep Navy (#0c1f3d) text
-   High contrast, clean, classic professional aesthetic
+
+
+/* ── CALM SAGE THEME (Fresh, Minimalis, Hijau Sage Elegan) ──
+   Palette: Background (#f3f7f4), Cards (#ffffff), Text (#152e22), Emerald (#2d7a5b)
 */
-[data-theme="soft_blue"] {
-  --app-bg:            #ddeeff;
-  --sidebar-bg:        #0d3268;
+[data-theme="calm_sage"] {
+  --app-bg:            #f3f7f4;
+  --sidebar-bg:        #0f291e;
   --header-bg:         #ffffff;
   --card-bg:           #ffffff;
-  --card-bg-2:         #eaf4ff;
+  --card-bg-2:         #eaf2ec;
   --input-bg:          #ffffff;
   --dropdown-bg:       #ffffff;
-  --control-bg:        #eaf4ff;
-  --hover-bg:          rgba(30, 90, 160, 0.07);
-  --glass-bg:          rgba(255, 255, 255, 0.88);
+  --control-bg:        #eef5f0;
+  --hover-bg:          rgba(45, 122, 91, 0.07);
+  --glass-bg:          rgba(255, 255, 255, 0.95);
 
-  --txt-primary:       #0c1f3d;
-  --txt-secondary:     #1e4a7c;
-  --txt-muted:         #456b9a;
+  --txt-primary:       #152e22;
+  --txt-secondary:     #28533f;
+  --txt-muted:         #587c6b;
   --txt-inverse:       #ffffff;
 
-  --border:            #b0ccec;
-  --border-strong:     #7aaad4;
-  --border-hover:      #3b82c4;
-  --glass-border:      #c3d9f0;
+  --border:            #c8ded1;
+  --border-strong:     #9ec4ad;
+  --border-hover:      #2d7a5b;
+  --glass-border:      #d5e6dc;
 
-  --accent-gold:       #1a6fc4;
-  --accent-gold-hover: #145ea8;
-  --accent-gold-bg:    rgba(26, 111, 196, 0.10);
-  --accent-gold-border:rgba(26, 111, 196, 0.28);
-  --accent-green:      #0a7c4e;
-  --accent-green-bg:   rgba(10, 124, 78, 0.10);
-  --accent-emerald:    #0a7c4e;
-  --accent-rose:       #c0152b;
-  --accent-cyan:       #0284c7;
+  --accent-gold:       #2d7a5b;
+  --accent-gold-hover: #226046;
+  --accent-gold-bg:    rgba(45, 122, 91, 0.10);
+  --accent-gold-border:rgba(45, 122, 91, 0.28);
+  --accent-green:      #2d7a5b;
+  --accent-green-bg:   rgba(45, 122, 91, 0.10);
+  --accent-emerald:    #1b533c;
+  --accent-rose:       #b91c1c;
+  --accent-cyan:       #0e7490;
 
-  --nav-active-bg:     linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%);
+  --nav-active-bg:     linear-gradient(135deg, #2d7a5b 0%, #1b533c 100%);
   --nav-active-txt:    #ffffff;
-  --nav-active-shadow: rgba(26, 111, 196, 0.30);
+  --nav-active-shadow: rgba(45, 122, 91, 0.30);
 
-  --shadow-sm:         0 1px 4px rgba(10, 40, 80, 0.10);
-  --shadow-md:         0 4px 16px rgba(10, 40, 80, 0.13);
-  --shadow-lg:         0 8px 32px rgba(10, 40, 80, 0.18);
-  --glass-shadow:      0 4px 24px rgba(10, 40, 80, 0.10);
+  --shadow-sm:         0 1px 4px rgba(21, 46, 34, 0.06);
+  --shadow-md:         0 4px 16px rgba(21, 46, 34, 0.08);
+  --shadow-lg:         0 8px 32px rgba(21, 46, 34, 0.12);
+  --glass-shadow:      0 4px 20px rgba(21, 46, 34, 0.06);
 
-  --scrollbar-track:   #c7e0f9;
-  --scrollbar-thumb:   #7aaad4;
-  --scrollbar-hover:   #3b82c4;
+  --scrollbar-track:   #eaf2ec;
+  --scrollbar-thumb:   #9ec4ad;
+  --scrollbar-hover:   #2d7a5b;
 
-  --bg-dark:           #eaf4ff;
+  --bg-dark:           #f3f7f4;
   --bg-dark-card:      #ffffff;
-  --bg-dark-card-hover:#f0f8ff;
-  --border-dark:       #b0ccec;
-  --primary:           #1a6fc4;
-  --primary-hover:     #145ea8;
-  --primary-light:     rgba(26, 111, 196, 0.12);
+  --bg-dark-card-hover:#f7fbf8;
+  --border-dark:       #c8ded1;
+  --primary:           #2d7a5b;
+  --primary-hover:     #1b533c;
+  --primary-light:     rgba(45, 122, 91, 0.10);
   --accent-amber:      #b45309;
-  --text-main:         #0c1f3d;
-  --text-muted:        #456b9a;
-  --text-dim:          #7aaad4;
+  --text-main:         #152e22;
+  --text-muted:        #28533f;
+  --text-dim:          #587c6b;
 }
 
-/* ── Soft Blue: glass-card becomes clean white card ── */
-[data-theme="soft_blue"] .glass-card {
-  background: #ffffff;
-  border-color: #b0ccec;
-  box-shadow: 0 2px 8px rgba(10, 40, 80, 0.10);
-}
-[data-theme="soft_blue"] .glass-card:hover {
-  border-color: rgba(26, 111, 196, 0.40);
-  box-shadow: 0 4px 16px rgba(10, 40, 80, 0.14);
-}
-
-/* ── Status Badges for Soft Blue ── */
-[data-theme="soft_blue"] .badge-income {
-  background: rgba(10, 124, 78, 0.10);
-  color: #0a7c4e;
-  border-color: rgba(10, 124, 78, 0.25);
-}
-[data-theme="soft_blue"] .badge-expense {
-  background: rgba(192, 21, 43, 0.10);
-  color: #c0152b;
-  border-color: rgba(192, 21, 43, 0.25);
-}
-
-/* Tables for Soft Blue */
-[data-theme="soft_blue"] table th {
-  background: #c7e0f9 !important;
-  color: #0c1f3d !important;
-  border-bottom: 2px solid #7aaad4 !important;
-}
-[data-theme="soft_blue"] table td {
-  color: #0c1f3d !important;
-  border-bottom: 1px solid #c3d9f0 !important;
-}
-[data-theme="soft_blue"] table tr:hover td {
-  background: rgba(26, 111, 196, 0.05) !important;
-}
-
-/* Form controls for Soft Blue */
-[data-theme="soft_blue"] .form-input,
-[data-theme="soft_blue"] .form-select,
-[data-theme="soft_blue"] input[type="text"],
-[data-theme="soft_blue"] input[type="date"],
-[data-theme="soft_blue"] input[type="number"],
-[data-theme="soft_blue"] select {
+/* Calm Sage: Card Styling */
+[data-theme="calm_sage"] .glass-card {
   background: #ffffff !important;
-  border-color: #7aaad4 !important;
-  color: #0c1f3d !important;
+  border-color: #c8ded1 !important;
+  box-shadow: 0 2px 10px rgba(21, 46, 34, 0.05) !important;
 }
-[data-theme="soft_blue"] .form-input:focus,
-[data-theme="soft_blue"] .form-select:focus {
-  border-color: #1a6fc4 !important;
-  box-shadow: 0 0 0 3px rgba(26, 111, 196, 0.15) !important;
+[data-theme="calm_sage"] .glass-card:hover {
+  border-color: #2d7a5b !important;
+  box-shadow: 0 4px 18px rgba(21, 46, 34, 0.09) !important;
 }
 
-/* Inline dark backgrounds → white/blue ── */
-[data-theme="soft_blue"] [style*="background: #0f172a"],
-[data-theme="soft_blue"] [style*="background:#0f172a"] { background: #ffffff !important; color: #0c1f3d !important; }
-[data-theme="soft_blue"] [style*="background: #1e293b"],
-[data-theme="soft_blue"] [style*="background:#1e293b"] { background: #eaf4ff !important; color: #0c1f3d !important; }
-[data-theme="soft_blue"] [style*="background: #111625"],
-[data-theme="soft_blue"] [style*="background:#111625"] { background: #eaf4ff !important; color: #0c1f3d !important; }
-[data-theme="soft_blue"] [style*="background: #0b0f19"],
-[data-theme="soft_blue"] [style*="background:#0b0f19"] { background: #ddeeff !important; }
+/* Calm Sage: Tables */
+[data-theme="calm_sage"] table th {
+  background: #dceee3 !important;
+  color: #152e22 !important;
+  border-bottom: 2px solid #9ec4ad !important;
+}
+[data-theme="calm_sage"] table td {
+  color: #152e22 !important;
+  border-bottom: 1px solid #d5e6dc !important;
+}
+[data-theme="calm_sage"] table tr:hover td {
+  background: rgba(45, 122, 91, 0.05) !important;
+}
 
-/* Dark text colors → deep navy ── */
-[data-theme="soft_blue"] [style*="color: #f8fafc"],
-[data-theme="soft_blue"] [style*="color:#f8fafc"] { color: #0c1f3d !important; }
-[data-theme="soft_blue"] [style*="color: #94a3b8"],
-[data-theme="soft_blue"] [style*="color:#94a3b8"] { color: #1e4a7c !important; }
-[data-theme="soft_blue"] [style*="color: #64748b"],
-[data-theme="soft_blue"] [style*="color:#64748b"] { color: #456b9a !important; }
-[data-theme="soft_blue"] [style*="color: #cbd5e1"],
-[data-theme="soft_blue"] [style*="color:#cbd5e1"] { color: #456b9a !important; }
+/* Calm Sage: Form Controls */
+[data-theme="calm_sage"] .form-input,
+[data-theme="calm_sage"] .form-select,
+[data-theme="calm_sage"] input[type="text"],
+[data-theme="calm_sage"] input[type="date"],
+[data-theme="calm_sage"] input[type="number"],
+[data-theme="calm_sage"] input[type="search"],
+[data-theme="calm_sage"] select {
+  background: #ffffff !important;
+  border-color: #c8ded1 !important;
+  color: #152e22 !important;
+}
+[data-theme="calm_sage"] .form-input:focus,
+[data-theme="calm_sage"] .form-select:focus,
+[data-theme="calm_sage"] input:focus,
+[data-theme="calm_sage"] select:focus {
+  border-color: #2d7a5b !important;
+  box-shadow: 0 0 0 3px rgba(45, 122, 91, 0.15) !important;
+}
 
-/* Borders → soft blue ── */
-[data-theme="soft_blue"] [style*="border: 1px solid #334155"],
-[data-theme="soft_blue"] [style*="border:1px solid #334155"] { border-color: #b0ccec !important; }
+/* Calm Sage: Override Legacy Dark Backgrounds */
+[data-theme="calm_sage"] [style*="background: #0f172a"],
+[data-theme="calm_sage"] [style*="background:#0f172a"] { background: #ffffff !important; color: #152e22 !important; }
+[data-theme="calm_sage"] [style*="background: #1e293b"],
+[data-theme="calm_sage"] [style*="background:#1e293b"] { background: #ffffff !important; color: #152e22 !important; }
+[data-theme="calm_sage"] [style*="background: #111625"],
+[data-theme="calm_sage"] [style*="background:#111625"] { background: #f3f7f4 !important; color: #152e22 !important; }
+[data-theme="calm_sage"] [style*="background: #0b0f19"],
+[data-theme="calm_sage"] [style*="background:#0b0f19"] { background: #f3f7f4 !important; }
 
-/* Semantic accent colors */
-[data-theme="soft_blue"] [style*="color: #34d399"],
-[data-theme="soft_blue"] [style*="color:#34d399"] { color: #0a7c4e !important; }
-[data-theme="soft_blue"] [style*="color: #38bdf8"],
-[data-theme="soft_blue"] [style*="color:#38bdf8"] { color: #0284c7 !important; }
-[data-theme="soft_blue"] [style*="color: #818cf8"],
-[data-theme="soft_blue"] [style*="color:#818cf8"],
-[data-theme="soft_blue"] [style*="color: #6366f1"],
-[data-theme="soft_blue"] [style*="color:#6366f1"] { color: #1a6fc4 !important; }
-[data-theme="soft_blue"] [style*="color: #fb7185"],
-[data-theme="soft_blue"] [style*="color:#fb7185"] { color: #c0152b !important; }
-[data-theme="soft_blue"] [style*="color: #fbbf24"],
-[data-theme="soft_blue"] [style*="color:#fbbf24"] { color: #b45309 !important; }
-[data-theme="soft_blue"] [style*="color: #f59e0b"],
-[data-theme="soft_blue"] [style*="color:#f59e0b"] { color: #b45309 !important; }
+/* Calm Sage: Dark Text Overrides */
+[data-theme="calm_sage"] [style*="color: #f8fafc"],
+[data-theme="calm_sage"] [style*="color:#f8fafc"] { color: #152e22 !important; }
+[data-theme="calm_sage"] [style*="color: #94a3b8"],
+[data-theme="calm_sage"] [style*="color:#94a3b8"] { color: #28533f !important; }
+[data-theme="calm_sage"] [style*="color: #64748b"],
+[data-theme="calm_sage"] [style*="color:#64748b"] { color: #587c6b !important; }
+[data-theme="calm_sage"] [style*="color: #cbd5e1"],
+[data-theme="calm_sage"] [style*="color:#cbd5e1"] { color: #587c6b !important; }
+
+/* Calm Sage: Border Overrides */
+[data-theme="calm_sage"] [style*="border: 1px solid #334155"],
+[data-theme="calm_sage"] [style*="border:1px solid #334155"] { border-color: #c8ded1 !important; }
 
 /* ═══════════════════════════════════════════
    GLOBAL BASE

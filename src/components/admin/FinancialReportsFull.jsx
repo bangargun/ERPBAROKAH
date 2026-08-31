@@ -4,7 +4,8 @@ import { getThemePalette } from '../../utils/themeUtils';
 
 export default function FinancialReportsFull({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
+  const isCalmSage = themeMode === 'calm_sage';
+  const isLight = themeMode === 'calm_sage' || themeMode === 'soft_blue' || themeMode === 'light';
 
   const [activeSubTab, setActiveSubTab] = useState('pnl'); // 'pnl' | 'balance' | 'cashflow' | 'ai'
   const [pnlSubView, setPnlSubView] = useState('single'); // 'single' | 'multi_month'
@@ -1749,99 +1750,232 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
           </div>
         </div>
 
-        {/* SUB-TAB NAVIGATION BAR */}
-        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-          <button
-            onClick={() => setActiveSubTab('pnl')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              border: '1px solid',
-              borderColor: activeSubTab === 'pnl' ? T.accentGold : T.border,
-              background: activeSubTab === 'pnl' ? T.navActiveBg : T.cardBg,
-              color: activeSubTab === 'pnl' ? T.navActiveTxt : T.txtSecondary,
-              fontWeight: '700',
-              fontSize: '0.90rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            <FileText size={16} />
-            <span>Laporan Laba Rugi (P&amp;L)</span>
-          </button>
+        {/* SUB-TAB NAVIGATION BAR — SuperApp Circular Icon Grid (GoPay / Modern App Style) */}
+        <div style={{
+          background: T.cardBg,
+          borderRadius: '16px',
+          border: `1px solid ${T.border}`,
+          padding: '14px 18px',
+          boxShadow: T.shadowSm
+        }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+            gap: '10px',
+            alignItems: 'start'
+          }}>
+            {[
+              {
+                id: 'pnl',
+                label: '1. Laba Rugi (P&L)',
+                shortLabel: 'Laba Rugi',
+                icon: FileText,
+                badge: 'Profit & Loss',
+                desc: 'Rincian pendapatan omzet, harga pokok penjualan (HPP), beban operasional, dan laba bersih (Net Profit).'
+              },
+              {
+                id: 'balance',
+                label: '2. Neraca Keuangan',
+                shortLabel: 'Neraca Keuangan',
+                icon: PieChart,
+                badge: 'Balance Sheet',
+                desc: 'Posisi aset lancar kas/bank/stok, kewajiban liabilitas hutang, serta ekuitas modal restoran.'
+              },
+              {
+                id: 'cashflow',
+                label: '3. Laporan Arus Kas',
+                shortLabel: 'Arus Kas',
+                icon: ArrowLeftRight,
+                badge: 'Cash Flow',
+                desc: 'Pergerakan arus kas masuk dan keluar dari aktivitas operasional, investasi, dan pendanaan.'
+              },
+              {
+                id: 'ai',
+                label: '4. Komparasi & AI',
+                shortLabel: 'AI Executive',
+                icon: Sparkles,
+                badge: 'AI Financial Insight',
+                desc: 'Perbandingan performa laba rugi antar periode dengan analisis cerdas dan rekomendasi otomatis AI.'
+              }
+            ].map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeSubTab === tab.id;
+              return (
+                <div
+                  key={tab.id}
+                  onClick={() => setActiveSubTab(tab.id)}
+                  title={`${tab.label} — ${tab.desc}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '8px 6px 6px 6px',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    background: isActive ? (isLight ? 'rgba(45, 122, 91, 0.08)' : 'rgba(45, 122, 91, 0.18)') : 'transparent',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative'
+                  }}
+                >
+                  {/* Circular Icon Badge */}
+                  <div style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: isActive
+                      ? T.primaryBtn
+                      : (isLight ? '#eef6f2' : '#14291f'),
+                    border: isActive
+                      ? `2px solid ${T.primary}`
+                      : `1.5px solid ${isLight ? '#c8ded1' : '#234a38'}`,
+                    color: isActive ? '#ffffff' : T.primary,
+                    boxShadow: isActive
+                      ? (T.primaryBtnShadow ? `0 6px 16px ${T.primaryBtnShadow}` : '0 6px 16px rgba(45, 122, 91, 0.40)')
+                      : 'none',
+                    transform: isActive ? 'scale(1.06)' : 'none',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}>
+                    <Icon size={20} />
+                  </div>
 
-          <button
-            onClick={() => setActiveSubTab('balance')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              border: '1px solid',
-              borderColor: activeSubTab === 'balance' ? T.accentGold : T.border,
-              background: activeSubTab === 'balance' ? T.navActiveBg : T.cardBg,
-              color: activeSubTab === 'balance' ? T.navActiveTxt : T.txtSecondary,
-              fontWeight: '700',
-              fontSize: '0.90rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            <PieChart size={16} />
-            <span>Neraca Keuangan (Balance Sheet)</span>
-          </button>
+                  {/* Text Label */}
+                  <span style={{
+                    fontSize: '0.74rem',
+                    fontWeight: isActive ? '900' : '700',
+                    color: isActive ? T.primary : T.txtPrimary,
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '100%',
+                    letterSpacing: '-0.01em'
+                  }}>
+                    {tab.shortLabel || tab.label}
+                  </span>
 
-          <button
-            onClick={() => setActiveSubTab('cashflow')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              border: '1px solid',
-              borderColor: activeSubTab === 'cashflow' ? T.accentGold : T.border,
-              background: activeSubTab === 'cashflow' ? T.navActiveBg : T.cardBg,
-              color: activeSubTab === 'cashflow' ? T.navActiveTxt : T.txtSecondary,
-              fontWeight: '700',
-              fontSize: '0.90rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            <ArrowLeftRight size={16} />
-            <span>Laporan Arus Kas (Cash Flow)</span>
-          </button>
-
-          <button
-            onClick={() => setActiveSubTab('ai')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              border: `1px solid ${T.success}`,
-              background: activeSubTab === 'ai' ? `linear-gradient(135deg, ${T.success}30 0%, ${T.info}20 100%)` : T.cardBg,
-              color: T.success,
-              fontWeight: '700',
-              fontSize: '0.90rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            <Sparkles size={16} />
-            <span>Perbandingan Laba/Rugi &amp; AI</span>
-          </button>
+                  {/* Active Indicator Underline */}
+                  {isActive && (
+                    <div style={{
+                      width: '18px',
+                      height: '3px',
+                      borderRadius: '2px',
+                      background: T.primary,
+                      marginTop: '-4px'
+                    }} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
+
+        {/* DYNAMIC ACTIVE CONTEXT CARD (Penjelasan Lengkap Laporan Keuangan Saat Diklik) */}
+        {(() => {
+          const finTabsMeta = [
+            {
+              id: 'pnl',
+              label: '1. Laba Rugi (P&L)',
+              shortLabel: 'Laba Rugi',
+              icon: FileText,
+              badge: 'Profit & Loss',
+              desc: 'Rincian pendapatan omzet, harga pokok penjualan (HPP), beban operasional, dan laba bersih (Net Profit).'
+            },
+            {
+              id: 'balance',
+              label: '2. Neraca Keuangan',
+              shortLabel: 'Neraca Keuangan',
+              icon: PieChart,
+              badge: 'Balance Sheet',
+              desc: 'Posisi aset lancar kas/bank/stok, kewajiban liabilitas hutang, serta ekuitas modal restoran.'
+            },
+            {
+              id: 'cashflow',
+              label: '3. Laporan Arus Kas',
+              shortLabel: 'Arus Kas',
+              icon: ArrowLeftRight,
+              badge: 'Cash Flow',
+              desc: 'Pergerakan arus kas masuk dan keluar dari aktivitas operasional, investasi, dan pendanaan.'
+            },
+            {
+              id: 'ai',
+              label: '4. Komparasi & AI',
+              shortLabel: 'AI Executive',
+              icon: Sparkles,
+              badge: 'AI Financial Insight',
+              desc: 'Perbandingan performa laba rugi antar periode dengan analisis cerdas dan rekomendasi otomatis AI.'
+            }
+          ];
+          const currentTabInfo = finTabsMeta.find(t => t.id === activeSubTab) || finTabsMeta[0];
+          const CurrentIcon = currentTabInfo.icon;
+
+          return (
+            <div className="glass-card animate-fade-in" style={{
+              background: T.cardBg,
+              border: `1px solid ${T.border}`,
+              borderLeft: `5px solid ${T.primary}`,
+              borderRadius: '14px',
+              padding: '14px 18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '14px',
+              boxShadow: T.shadowSm
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: '280px' }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  background: T.primaryBtn,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ffffff',
+                  boxShadow: T.primaryBtnShadow ? `0 4px 14px ${T.primaryBtnShadow}` : '0 4px 14px rgba(45, 122, 91, 0.35)',
+                  flexShrink: 0
+                }}>
+                  <CurrentIcon size={20} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h3 style={{ fontSize: '0.92rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
+                      {currentTabInfo.label}
+                    </h3>
+                    <span style={{
+                      fontSize: '0.62rem',
+                      fontWeight: '800',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      background: isLight ? 'rgba(45, 122, 91, 0.10)' : 'rgba(45, 122, 91, 0.22)',
+                      color: T.primary,
+                      border: `1px solid ${isLight ? '#c8ded1' : '#234a38'}`,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em'
+                    }}>
+                      {currentTabInfo.badge}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.76rem', color: T.txtSecondary, margin: 0, fontWeight: '600', lineHeight: '1.35' }}>
+                    {currentTabInfo.desc}
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                <span style={{ fontSize: '0.70rem', color: T.txtMuted, fontWeight: '700', background: T.controlBg, padding: '5px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                  📊 Laporan: <strong style={{ color: T.primary }}>{currentTabInfo.shortLabel}</strong>
+                </span>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* TOP FILTER BAR: SHARED FOR P&L, BALANCE SHEET & CASH FLOW */}

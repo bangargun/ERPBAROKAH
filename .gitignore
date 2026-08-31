@@ -94,3 +94,5 @@ mris_pos_kasir/build/
 bin/
 *.apk
 **/*.apk
+local_production_backup.json
+mris_finance.json

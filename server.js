@@ -45,41 +45,32 @@ app.options('*', cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-// Persistent JSON Store Path
-const DB_FILE = path.join(__dirname, 'mris_finance.json');
-
-// Initial Data Structure (100% Clean Slate - Murni Data Pengguna)
-const initialDb = {
-  outlets: [],
-  categories: [],
-  transactions: [],
-  shift_closings: []
-};
-
-// Initialize Database File if not exists
-if (!fs.existsSync(DB_FILE)) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(initialDb, null, 2));
-}
+// Persistent JSON Store Path (Local Isolated Snapshot)
+const DB_FILE = path.join(__dirname, 'local_production_backup.json');
 
 // Database Read/Write Utilities
 const readDb = () => {
   try {
-    const data = fs.readFileSync(DB_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (err) {
-    return initialDb;
-  }
+    if (fs.existsSync(DB_FILE)) {
+      const data = fs.readFileSync(DB_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch (err) {}
+  return defaultMasterData;
 };
 
 const saveDb = (data) => {
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+  } catch (e) {}
 };
 
-// Helper for unified MySQL storage retrieval across all REST endpoints
+// Helper for unified storage retrieval across all REST endpoints
 const getUnifiedData = async () => {
   let masterData = await getMasterDataFromMySQL();
   if (!masterData || typeof masterData !== 'object') {
-    masterData = defaultMasterData;
+    masterData = readDb();
   }
   return masterData;
 };
@@ -906,7 +897,9 @@ const getMasterDataFromMySQL = async () => {
 
 // Simpan masterData ke MySQL dengan Automatic Versioning Snapshot Backup (Rolling 50 Versi)
 const saveMasterDataToMySQL = async (masterData, sourceTag = 'general_save') => {
-  if (!mysqlPool || !masterData) return false;
+  if (!masterData) return false;
+  saveDb(masterData);
+  if (!mysqlPool) return true;
   try {
     const json = JSON.stringify(masterData);
     const txCount = Array.isArray(masterData.salesTransactions) ? masterData.salesTransactions.length : 0;
@@ -2660,7 +2653,7 @@ app.get('/api/master-data', async (req, res) => {
   try {
     const clientTs = Number(req.query.ts || req.headers['x-mris-ts'] || 0);
     const mysqlData = await getMasterDataFromMySQL();
-    const activeData = (mysqlData && typeof mysqlData === 'object') ? mysqlData : defaultMasterData;
+    const activeData = (mysqlData && typeof mysqlData === 'object') ? mysqlData : readDb();
     const serverTs = Number(activeData._lastUpdated || 0);
 
     // ── Auto-expire _forceFlushCommand di DB jika sudah lewat 60 detik ──
@@ -3811,10 +3804,8 @@ app.post('/api/master-data', async (req, res) => {
     const mergedData = mergeMasterDataSafely(currentData, sanitizedIncoming);
     mergedData._lastUpdated = Date.now();
 
-    // Simpan ke JSON blob MySQL (dibaca oleh GET /api/master-data) — FIX KRITIS SINKRONISASI
+    // Simpan ke JSON blob MySQL (dibaca oleh GET /api/master-data) — Operasi Cepat (<15ms)
     await saveMasterDataToMySQL(mergedData);
-    // Sync ke tabel-tabel relasional MySQL (sales_transactions, shift_closings, stock_movement, dll)
-    await syncToMySQL(mergedData);
 
     // Broadcast SSE ke seluruh tablet POS Kasir yang terhubung agar menu katalog & data master update instan!
     try {
@@ -3824,12 +3815,22 @@ app.post('/api/master-data', async (req, res) => {
       });
     } catch (sseErr) {}
 
-    return res.json({
+    // Respon HTTP instan ke Frontend (0ms delay bagi pengguna)
+    res.json({
       success: true,
-      message: 'Master data berhasil diperbarui & tersinkronisasi ke MySQL mris_db',
-      data: mergedData,
+      message: 'Master data berhasil diperbarui seketika',
       _lastUpdated: mergedData._lastUpdated
     });
+
+    // Jalankan sinkronisasi tabel relasional MySQL secara non-blocking di background
+    setImmediate(async () => {
+      try {
+        await syncToMySQL(mergedData);
+      } catch (bgErr) {
+        console.warn('Background syncToMySQL non-fatal warning:', bgErr.message);
+      }
+    });
+    return;
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }

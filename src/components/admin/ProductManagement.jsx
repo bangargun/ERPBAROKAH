@@ -34,6 +34,7 @@ import {
 import MenuAnalyticsDetailModal from './MenuAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
+import DeleteGuardModal from './DeleteGuardModal';
 import { getThemePalette } from '../../utils/themeUtils';
 import { getMenuFallbackImage } from '../../utils/formatUtils';
 import { requestDelete, countRelatedTransactions, executePermanentDelete } from '../../utils/deleteGuard';
@@ -648,17 +649,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       localStorage.setItem('mris_master_data', JSON.stringify(nextMaster));
     } catch (e) {}
 
-    // Segera dorong ke server backend VPS agar POS Kasir langsung menerima produk baru
-    try {
-      fetch(getApiUrl('/api/master-data'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(nextMaster)
-      }).catch(err => console.warn('Failed to push saved product to server:', err));
-    } catch (e) {}
-
     setShowFormModal(false);
-    alert(`Menu "${productPayload.name}" berhasil disimpan dan disinkronkan ke seluruh POS Kasir!`);
   };
 
   // -------------------------------------------------------------

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BookOpen, Plus, Search, Edit3, Trash2, X, CheckCircle2, Tag, Layers, FolderPlus, Info, HelpCircle, ArrowRight, ShieldCheck, FileText, Scale, ArrowLeftRight, Download, Upload, FileSpreadsheet, FileUp, RefreshCw, AlertCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import PaginationControls from './PaginationControls';
+import DeleteGuardModal from './DeleteGuardModal';
 import { getThemePalette } from '../../utils/themeUtils';
 import { getApiUrl } from '../../utils/apiConfig';
 import { requestDelete, executePermanentDelete } from '../../utils/deleteGuard';

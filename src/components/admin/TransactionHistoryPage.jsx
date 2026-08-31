@@ -35,7 +35,8 @@ import { executePermanentDelete } from '../../utils/deleteGuard';
 export default function TransactionHistoryPage({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
   const outlets = masterData?.outlets || [];
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
+  const isCalmSage = themeMode === 'calm_sage';
+  const isLight = themeMode === 'calm_sage' || themeMode === 'soft_blue' || themeMode === 'light';
 
   const formatRupiah = (val) => {
     return 'Rp ' + Number(val || 0).toLocaleString('id-ID');

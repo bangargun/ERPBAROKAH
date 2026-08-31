@@ -7,7 +7,8 @@ import { getThemePalette } from '../../utils/themeUtils';
 
 export default function PrinterThermalSettingsPage({ masterData, setMasterData, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
+  const isCalmSage = themeMode === 'calm_sage';
+  const isLight = themeMode === 'calm_sage' || themeMode === 'soft_blue' || themeMode === 'light';
 
   // Styling helper for input fields (High contrast in both Dark & Light mode)
   const inputStyle = {
@@ -199,7 +200,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
   };
 
   return (
-    <div style={{ flex: 1, padding: '24px', overflowY: 'auto', background: 'var(--pos-bg-app, #090d16)', minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ flex: 1, padding: '24px', overflowY: 'auto', background: T.appBg, minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
       {/* TOAST SUCCESS NOTIFICATION */}
       {savedSuccessToast && (
@@ -210,9 +211,9 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
       )}
 
       {/* TOP HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', background: T.cardBg, padding: '18px 22px', borderRadius: '16px', border: `1px solid ${T.border}` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', background: T.cardBg, padding: '18px 22px', borderRadius: '16px', border: `1px solid ${T.border}`, boxShadow: T.shadowSm }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 4px 14px rgba(37,99,235,0.4)' }}>
+          <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: T.primaryBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: T.primaryBtnShadow ? `0 4px 14px ${T.primaryBtnShadow}` : '0 4px 14px rgba(45, 122, 91, 0.4)' }}>
             <Printer size={24} />
           </div>
           <div>
@@ -230,7 +231,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
 
         <button
           onClick={handleSaveSettings}
-          style={{ padding: '10px 20px', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', border: 'none', borderRadius: '10px', color: '#ffffff', fontWeight: '900', fontSize: '0.84rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(37,99,235,0.35)' }}
+          style={{ padding: '10px 20px', background: T.primaryBtn, border: 'none', borderRadius: '10px', color: '#ffffff', fontWeight: '900', fontSize: '0.84rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: T.primaryBtnShadow ? `0 4px 14px ${T.primaryBtnShadow}` : '0 4px 14px rgba(45, 122, 91, 0.35)' }}
         >
           <Save size={16} />
           <span>Simpan Semua Pengaturan</span>
@@ -549,7 +550,8 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
 
 function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptStyle = {}, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
+  const isCalmSage = themeMode === 'calm_sage';
+  const isLight = themeMode === 'calm_sage' || themeMode === 'soft_blue' || themeMode === 'light';
   const [receiptType, setReceiptType] = useState('cashier');
   const [paperWidth, setPaperWidth] = useState('58');
 
@@ -562,13 +564,13 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptSt
     : '-';
 
   return (
-    <div style={{ background: T.cardBg, padding: '20px', borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div style={{ background: T.cardBg, padding: '20px', borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: T.shadowSm }}>
       
       {/* HEADER & CONTROLS */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
         <div>
           <h3 style={{ fontSize: '0.95rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Printer size={16} color="#3b82f6" />
+            <Printer size={16} color={T.primary} />
             <span>Pratinjau Struk (Live Preview)</span>
           </h3>
         </div>
@@ -576,13 +578,13 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptSt
         <div style={{ display: 'flex', gap: '6px' }}>
           <button
             onClick={() => setPaperWidth('58')}
-            style={{ padding: '5px 12px', borderRadius: '6px', border: 'none', background: paperWidth === '58' ? '#2563eb' : (isLight ? '#f1f5f9' : '#0b1120'), color: paperWidth === '58' ? '#fff' : T.txtMuted, fontWeight: '900', fontSize: '0.76rem', cursor: 'pointer' }}
+            style={{ padding: '5px 12px', borderRadius: '6px', border: 'none', background: paperWidth === '58' ? T.primaryBtn : T.controlBg, color: paperWidth === '58' ? '#fff' : T.txtPrimary, fontWeight: '900', fontSize: '0.76rem', cursor: 'pointer' }}
           >
             58mm
           </button>
           <button
             onClick={() => setPaperWidth('80')}
-            style={{ padding: '5px 12px', borderRadius: '6px', border: 'none', background: paperWidth === '80' ? '#2563eb' : (isLight ? '#f1f5f9' : '#0b1120'), color: paperWidth === '80' ? '#fff' : T.txtMuted, fontWeight: '900', fontSize: '0.76rem', cursor: 'pointer' }}
+            style={{ padding: '5px 12px', borderRadius: '6px', border: 'none', background: paperWidth === '80' ? T.primaryBtn : T.controlBg, color: paperWidth === '80' ? '#fff' : T.txtPrimary, fontWeight: '900', fontSize: '0.76rem', cursor: 'pointer' }}
           >
             80mm
           </button>
@@ -590,29 +592,29 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptSt
       </div>
 
       {/* TABS FOR PREVIEW TYPE */}
-      <div style={{ display: 'flex', background: isLight ? '#f1f5f9' : '#0b1120', padding: '3px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+      <div style={{ display: 'flex', background: T.controlBg, padding: '3px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
         <button
           onClick={() => setReceiptType('cashier')}
-          style={{ flex: 1, padding: '7px 4px', borderRadius: '6px', border: 'none', background: receiptType === 'cashier' ? '#2563eb' : 'transparent', color: receiptType === 'cashier' ? '#fff' : T.txtMuted, fontWeight: '900', fontSize: '0.74rem', cursor: 'pointer' }}
+          style={{ flex: 1, padding: '7px 4px', borderRadius: '6px', border: 'none', background: receiptType === 'cashier' ? T.primaryBtn : 'transparent', color: receiptType === 'cashier' ? '#fff' : T.txtPrimary, fontWeight: '900', fontSize: '0.74rem', cursor: 'pointer' }}
         >
           Nota Kasir
         </button>
         <button
           onClick={() => setReceiptType('bill')}
-          style={{ flex: 1, padding: '7px 4px', borderRadius: '6px', border: 'none', background: receiptType === 'bill' ? '#2563eb' : 'transparent', color: receiptType === 'bill' ? '#fff' : T.txtMuted, fontWeight: '900', fontSize: '0.74rem', cursor: 'pointer' }}
+          style={{ flex: 1, padding: '7px 4px', borderRadius: '6px', border: 'none', background: receiptType === 'bill' ? T.primaryBtn : 'transparent', color: receiptType === 'bill' ? '#fff' : T.txtPrimary, fontWeight: '900', fontSize: '0.74rem', cursor: 'pointer' }}
         >
           Tagihan (Bill)
         </button>
         <button
           onClick={() => setReceiptType('kitchen')}
-          style={{ flex: 1, padding: '7px 4px', borderRadius: '6px', border: 'none', background: receiptType === 'kitchen' ? '#2563eb' : 'transparent', color: receiptType === 'kitchen' ? '#fff' : T.txtMuted, fontWeight: '900', fontSize: '0.74rem', cursor: 'pointer' }}
+          style={{ flex: 1, padding: '7px 4px', borderRadius: '6px', border: 'none', background: receiptType === 'kitchen' ? T.primaryBtn : 'transparent', color: receiptType === 'kitchen' ? '#fff' : T.txtPrimary, fontWeight: '900', fontSize: '0.74rem', cursor: 'pointer' }}
         >
           Dapur / Bar
         </button>
       </div>
 
       {/* PAPER SIMULATION */}
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0', background: '#0b1120', borderRadius: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0', background: isLight ? '#dbe9e2' : '#0b1120', borderRadius: '12px', border: `1px solid ${T.border}` }}>
         <div style={{
           width: widthPx,
           background: '#ffffff',

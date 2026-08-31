@@ -40,7 +40,8 @@ export default function ManualReportUpdateModal({
   if (!show) return null;
 
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
+  const isCalmSage = themeMode === 'calm_sage';
+  const isLight = themeMode === 'calm_sage' || themeMode === 'soft_blue' || themeMode === 'light';
   const isEditMode = !!editData;
 
   // Active Tab ('manual' | 'excel' | 'import_sales' | 'import_expenses')
@@ -1560,112 +1561,221 @@ export default function ManualReportUpdateModal({
           </div>
         </div>
 
-        {/* MODE NAVIGATION TABS (SEGMENTED CONTROL BAR) */}
+        {/* SUB-TAB CIRCULAR ICON GRID & DYNAMIC CONTEXT CARD */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-          gap: '8px',
-          background: isLight ? '#f1f5f9' : 'rgba(15, 23, 42, 0.8)',
-          padding: '6px',
-          borderRadius: '12px',
-          border: `1px solid ${T.border}`
+          background: T.cardBg,
+          borderRadius: '16px',
+          border: `1px solid ${T.border}`,
+          padding: '14px 18px',
+          boxShadow: T.shadowSm
         }}>
-          <button
-            type="button"
-            onClick={() => setActiveTab('manual')}
-            style={{
-              padding: '9px 12px',
-              borderRadius: '8px',
-              border: activeTab === 'manual' ? '1px solid #fbbf24' : '1px solid transparent',
-              background: activeTab === 'manual' ? (isLight ? '#ffffff' : '#1e293b') : 'transparent',
-              color: activeTab === 'manual' ? (isLight ? '#b45309' : '#fbbf24') : T.txtSecondary,
-              fontWeight: activeTab === 'manual' ? '900' : '700',
-              fontSize: '0.78rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              boxShadow: activeTab === 'manual' ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
-              transition: 'all 0.18s ease'
-            }}
-          >
-            <Plus size={15} color={activeTab === 'manual' ? (isLight ? '#b45309' : '#fbbf24') : T.txtSecondary} />
-            <span>1. Input Manual Transaksi</span>
-          </button>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+            gap: '10px',
+            alignItems: 'start'
+          }}>
+            {[
+              {
+                id: 'manual',
+                label: '1. Input Manual Transaksi',
+                shortLabel: 'Input Manual',
+                icon: Plus,
+                badge: 'Form Entry',
+                desc: 'Formulir input data transaksi penjualan, pengeluaran HPP, beban operasional, dan setoran kasir.',
+                action: () => setActiveTab('manual')
+              },
+              {
+                id: 'sales_import',
+                label: '2. Impor Penjualan',
+                shortLabel: 'Impor Sales',
+                icon: FileSpreadsheet,
+                badge: 'PDF & Excel POS',
+                desc: 'Wizard impor rekonsiliasi struk penjualan dari file PDF & Excel Luna POS.',
+                action: () => onOpenSalesImport ? onOpenSalesImport() : null
+              },
+              {
+                id: 'expense_import',
+                label: '3. Impor Pengeluaran',
+                shortLabel: 'Impor Biaya',
+                icon: ShoppingBag,
+                badge: 'PDF & Excel Belanja',
+                desc: 'Wizard impor pencatatan belanja bahan baku dan invoice pengeluaran operasional outlet.',
+                action: () => onOpenExpenseImport ? onOpenExpenseImport() : null
+              },
+              {
+                id: 'excel',
+                label: '4. Batch Upload Excel',
+                shortLabel: 'Batch Excel',
+                icon: Layers,
+                badge: 'Multi-Sheet Template',
+                desc: 'Unggah file master Excel rekapitulasi keuangan multi-outlet secara massal.',
+                action: () => setActiveTab('excel')
+              }
+            ].map(tab => {
+              const Icon = tab.icon;
+              const isTabActive = activeTab === tab.id;
 
-          <button
-            type="button"
-            onClick={() => onOpenSalesImport ? onOpenSalesImport() : null}
-            style={{
-              padding: '9px 12px',
-              borderRadius: '8px',
-              border: '1px solid rgba(245, 158, 11, 0.35)',
-              background: isLight ? 'rgba(245, 158, 11, 0.08)' : 'rgba(245, 158, 11, 0.12)',
-              color: isLight ? '#b45309' : '#fbbf24',
-              fontWeight: '900',
-              fontSize: '0.78rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'all 0.18s ease'
-            }}
-            title="Buka Wizard Impor Penjualan Dokumen PDF & Excel"
-          >
-            <FileSpreadsheet size={15} color={isLight ? '#b45309' : '#fbbf24'} />
-            <span>2. Impor Penjualan (PDF / Excel)</span>
-          </button>
+              return (
+                <div
+                  key={tab.id}
+                  onClick={tab.action}
+                  title={`${tab.label} — ${tab.desc}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '8px 6px 6px 6px',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    background: isTabActive ? (isLight ? 'rgba(45, 122, 91, 0.08)' : 'rgba(45, 122, 91, 0.18)') : 'transparent',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative'
+                  }}
+                >
+                  {/* Circular Icon Badge */}
+                  <div style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: isTabActive
+                      ? T.primaryBtn
+                      : (isLight ? '#eef6f2' : '#14291f'),
+                    border: isTabActive
+                      ? `2px solid ${T.primary}`
+                      : `1.5px solid ${isLight ? '#c8ded1' : '#234a38'}`,
+                    color: isTabActive ? '#ffffff' : T.primary,
+                    boxShadow: isTabActive
+                      ? (T.primaryBtnShadow ? `0 6px 16px ${T.primaryBtnShadow}` : '0 6px 16px rgba(45, 122, 91, 0.40)')
+                      : 'none',
+                    transform: isTabActive ? 'scale(1.06)' : 'none',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}>
+                    <Icon size={20} />
+                  </div>
 
-          <button
-            type="button"
-            onClick={() => onOpenExpenseImport ? onOpenExpenseImport() : null}
-            style={{
-              padding: '9px 12px',
-              borderRadius: '8px',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
-              background: isLight ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.12)',
-              color: isLight ? '#dc2626' : '#f87171',
-              fontWeight: '900',
-              fontSize: '0.78rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'all 0.18s ease'
-            }}
-            title="Buka Wizard Impor Pengeluaran & Pembelian Bahan PDF & Excel"
-          >
-            <ShoppingBag size={15} color={isLight ? '#dc2626' : '#f87171'} />
-            <span>3. Impor Pengeluaran (PDF / Excel)</span>
-          </button>
+                  {/* Text Label */}
+                  <span style={{
+                    fontSize: '0.74rem',
+                    fontWeight: isTabActive ? '900' : '700',
+                    color: isTabActive ? T.primary : T.txtPrimary,
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '100%',
+                    letterSpacing: '-0.01em'
+                  }}>
+                    {tab.shortLabel}
+                  </span>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('excel')}
-            style={{
-              padding: '9px 12px',
-              borderRadius: '8px',
-              border: activeTab === 'excel' ? '1px solid #38bdf8' : '1px solid transparent',
-              background: activeTab === 'excel' ? (isLight ? '#ffffff' : '#1e293b') : 'transparent',
-              color: activeTab === 'excel' ? (isLight ? '#0284c7' : '#38bdf8') : T.txtSecondary,
-              fontWeight: activeTab === 'excel' ? '900' : '700',
-              fontSize: '0.78rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              boxShadow: activeTab === 'excel' ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
-              transition: 'all 0.18s ease'
-            }}
-          >
-            <Layers size={15} color={activeTab === 'excel' ? (isLight ? '#0284c7' : '#38bdf8') : T.txtSecondary} />
-            <span>4. Batch Upload File Excel Rekap</span>
-          </button>
+                  {/* Active Indicator Underline */}
+                  {isTabActive && (
+                    <div style={{
+                      width: '18px',
+                      height: '3px',
+                      borderRadius: '2px',
+                      background: T.primary,
+                      marginTop: '-4px'
+                    }} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
+
+        {/* DYNAMIC ACTIVE CONTEXT CARD (Penjelasan Lengkap Mode Input Saat Diklik) */}
+        {(() => {
+          const updateTabsMeta = [
+            {
+              id: 'manual',
+              label: '1. Input Manual Transaksi',
+              shortLabel: 'Input Manual',
+              icon: Plus,
+              badge: 'Form Entry',
+              desc: 'Formulir input data transaksi penjualan, pengeluaran HPP, beban operasional, dan setoran kasir.'
+            },
+            {
+              id: 'excel',
+              label: '4. Batch Upload Excel',
+              shortLabel: 'Batch Excel',
+              icon: Layers,
+              badge: 'Multi-Sheet Template',
+              desc: 'Unggah file master Excel rekapitulasi keuangan multi-outlet secara massal.'
+            }
+          ];
+          const currentTabInfo = updateTabsMeta.find(t => t.id === activeTab) || updateTabsMeta[0];
+          const CurrentIcon = currentTabInfo.icon;
+
+          return (
+            <div className="glass-card animate-fade-in" style={{
+              background: T.cardBg,
+              border: `1px solid ${T.border}`,
+              borderLeft: `5px solid ${T.primary}`,
+              borderRadius: '14px',
+              padding: '14px 18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '14px',
+              boxShadow: T.shadowSm
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: '280px' }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  background: T.primaryBtn,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ffffff',
+                  boxShadow: T.primaryBtnShadow ? `0 4px 14px ${T.primaryBtnShadow}` : '0 4px 14px rgba(45, 122, 91, 0.35)',
+                  flexShrink: 0
+                }}>
+                  <CurrentIcon size={20} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h3 style={{ fontSize: '0.92rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
+                      {currentTabInfo.label}
+                    </h3>
+                    <span style={{
+                      fontSize: '0.62rem',
+                      fontWeight: '800',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      background: isLight ? 'rgba(45, 122, 91, 0.10)' : 'rgba(45, 122, 91, 0.22)',
+                      color: T.primary,
+                      border: `1px solid ${isLight ? '#c8ded1' : '#234a38'}`,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em'
+                    }}>
+                      {currentTabInfo.badge}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.76rem', color: T.txtSecondary, margin: 0, fontWeight: '600', lineHeight: '1.35' }}>
+                    {currentTabInfo.desc}
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                <span style={{ fontSize: '0.70rem', color: T.txtMuted, fontWeight: '700', background: T.controlBg, padding: '5px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                  📝 Mode Update: <strong style={{ color: T.primary }}>{currentTabInfo.shortLabel}</strong>
+                </span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* --- TAB 1: MANUAL INPUT FORM --- */}
         {activeTab === 'manual' && (

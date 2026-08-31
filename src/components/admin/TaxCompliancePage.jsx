@@ -498,7 +498,7 @@ export default function TaxCompliancePage({ masterData, setMasterData, selectedB
             padding: '10px 20px',
             borderRadius: '10px',
             border: 'none',
-            background: activeSubTab === 'sptpd' ? (themeMode === 'soft_blue' ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : '#f59e0b') : 'transparent',
+            background: activeSubTab === 'sptpd' ? T.primaryBtn : 'transparent',
             color: activeSubTab === 'sptpd' ? '#ffffff' : T.txtSecondary,
             fontWeight: '900',
             fontSize: '0.86rem',
@@ -518,7 +518,7 @@ export default function TaxCompliancePage({ masterData, setMasterData, selectedB
             padding: '10px 20px',
             borderRadius: '10px',
             border: 'none',
-            background: activeSubTab === 'daily_log' ? (themeMode === 'soft_blue' ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : '#f59e0b') : 'transparent',
+            background: activeSubTab === 'daily_log' ? T.primaryBtn : 'transparent',
             color: activeSubTab === 'daily_log' ? '#ffffff' : T.txtSecondary,
             fontWeight: '900',
             fontSize: '0.86rem',
@@ -706,7 +706,7 @@ export default function TaxCompliancePage({ masterData, setMasterData, selectedB
                     key={idx}
                     style={{
                       borderBottom: `1px solid ${T.border}`,
-                      background: row.isWeekend ? (themeMode === 'soft_blue' ? 'rgba(26, 111, 196, 0.05)' : 'rgba(245, 158, 11, 0.05)') : 'transparent'
+                      background: row.isWeekend ? (isCalmSage ? 'rgba(45, 122, 91, 0.05)' : 'rgba(245, 158, 11, 0.05)') : 'transparent'
                     }}
                   >
                     <td style={{ padding: '12px 16px', color: T.txtMuted, fontWeight: '700' }}>

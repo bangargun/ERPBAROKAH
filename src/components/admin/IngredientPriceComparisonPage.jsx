@@ -9,10 +9,42 @@ import { getThemePalette } from '../../utils/themeUtils';
 import { DoubleCalendarPicker } from './SalesTransactionsPage';
 
 const TABS = [
-  { id: 'harga_bahan_outlet', label: 'Harga Satuan Bahan Baku', sublabel: 'Outlet by Outlet' },
-  { id: 'qty_bahan_outlet',   label: 'Quantity Bahan Baku',    sublabel: 'Outlet by Outlet' },
-  { id: 'harga_beban_outlet', label: 'Harga Satuan Beban',     sublabel: 'Outlet by Outlet' },
-  { id: 'qty_beban_outlet',   label: 'Quantity Beban',          sublabel: 'Outlet by Outlet' },
+  {
+    id: 'harga_bahan_outlet',
+    label: '1. Harga Satuan Bahan Baku',
+    shortLabel: 'Harga Bahan',
+    icon: DollarSign,
+    badge: 'Price Benchmark',
+    desc: 'Perbandingan harga satuan beli bahan baku antar cabang per tanggal (Harga Termurah Hijau vs Termahal Merah).',
+    sublabel: 'Outlet by Outlet'
+  },
+  {
+    id: 'qty_bahan_outlet',
+    label: '2. Quantity Bahan Baku',
+    shortLabel: 'Qty Bahan',
+    icon: Scale,
+    badge: 'Volume Inflow',
+    desc: 'Volume kuantitas pasokan bahan baku yang diterima masing-masing cabang restoran per tanggal transaksi.',
+    sublabel: 'Outlet by Outlet'
+  },
+  {
+    id: 'harga_beban_outlet',
+    label: '3. Harga Satuan Beban',
+    shortLabel: 'Harga Beban',
+    icon: Layers,
+    badge: 'Expense Benchmark',
+    desc: 'Komparasi tarif harga satuan biaya & beban operasional antar cabang untuk efisiensi pengeluaran kas.',
+    sublabel: 'Outlet by Outlet'
+  },
+  {
+    id: 'qty_beban_outlet',
+    label: '4. Quantity Beban',
+    shortLabel: 'Qty Beban',
+    icon: TrendingUp,
+    badge: 'Expense Volume',
+    desc: 'Frekuensi dan volume kuantitas pemakaian beban operasional per tanggal pada masing-masing outlet.',
+    sublabel: 'Outlet by Outlet'
+  },
 ];
 
 const TAB_DESC = {
@@ -24,7 +56,8 @@ const TAB_DESC = {
 
 export default function IngredientPriceComparisonPage({ masterData, selectedBranch, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
+  const isCalmSage = themeMode === 'calm_sage';
+  const isLight = themeMode === 'calm_sage' || themeMode === 'soft_blue' || themeMode === 'light';
 
   const [activeTab, setActiveTab]       = useState('harga_bahan_outlet');
   const [periodViewMode, setPeriodViewMode] = useState('daily'); // 'daily' | 'monthly'
@@ -828,19 +861,165 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
         );
       })()}
 
-      {/* 3. TABS SELECTOR (HARGA BAHAN / QTY BAHAN / HARGA BEBAN / QTY BEBAN) */}
-      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', background: T.cardBg, padding: '8px', borderRadius: '14px', border: `1px solid ${T.border}` }}>
-        {TABS.map(tab => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button key={tab.id} onClick={() => handleTabChange(tab.id)}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '8px 14px', borderRadius: '10px', cursor: 'pointer', border: `1px solid ${isActive ? T.accentGoldBorder : T.border}`, background: isActive ? T.accentGoldBg : 'transparent', color: isActive ? T.accentGold : T.txtSecondary, transition: 'all 0.2s', flex: '1 1 auto', minWidth: '140px', textAlign: 'left' }}>
-              <span style={{ fontWeight: '800', fontSize: '0.78rem', lineHeight: 1.3 }}>{tab.label}</span>
-              <span style={{ fontSize: '0.64rem', opacity: 0.8, marginTop: '2px' }}>{tab.sublabel}</span>
-            </button>
-          );
-        })}
+      {/* 3. TABS SELECTOR — SuperApp Circular Icon Grid (GoPay / Modern App Style) */}
+      <div style={{
+        background: T.cardBg,
+        borderRadius: '16px',
+        border: `1px solid ${T.border}`,
+        padding: '14px 18px',
+        boxShadow: T.shadowSm
+      }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+          gap: '10px',
+          alignItems: 'start'
+        }}>
+          {TABS.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <div
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                title={`${tab.label} — ${tab.desc}`}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '8px 6px 6px 6px',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  background: isActive ? (isLight ? 'rgba(45, 122, 91, 0.08)' : 'rgba(45, 122, 91, 0.18)') : 'transparent',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative'
+                }}
+              >
+                {/* Circular Icon Badge */}
+                <div style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: isActive
+                    ? T.primaryBtn
+                    : (isLight ? '#eef6f2' : '#14291f'),
+                  border: isActive
+                    ? `2px solid ${T.primary}`
+                    : `1.5px solid ${isLight ? '#c8ded1' : '#234a38'}`,
+                  color: isActive ? '#ffffff' : T.primary,
+                  boxShadow: isActive
+                    ? (T.primaryBtnShadow ? `0 6px 16px ${T.primaryBtnShadow}` : '0 6px 16px rgba(45, 122, 91, 0.40)')
+                    : 'none',
+                  transform: isActive ? 'scale(1.06)' : 'none',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}>
+                  <Icon size={20} />
+                </div>
+
+                {/* Text Label */}
+                <span style={{
+                  fontSize: '0.74rem',
+                  fontWeight: isActive ? '900' : '700',
+                  color: isActive ? T.primary : T.txtPrimary,
+                  textAlign: 'center',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '100%',
+                  letterSpacing: '-0.01em'
+                }}>
+                  {tab.shortLabel || tab.label}
+                </span>
+
+                {/* Active Indicator Underline */}
+                {isActive && (
+                  <div style={{
+                    width: '18px',
+                    height: '3px',
+                    borderRadius: '2px',
+                    background: T.primary,
+                    marginTop: '-4px'
+                  }} />
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
+
+      {/* DYNAMIC ACTIVE CONTEXT CARD (Penjelasan Lengkap Analisis Harga Bahan Saat Diklik) */}
+      {(() => {
+        const currentTabInfo = TABS.find(t => t.id === activeTab) || TABS[0];
+        const CurrentIcon = currentTabInfo.icon;
+
+        return (
+          <div className="glass-card animate-fade-in" style={{
+            background: T.cardBg,
+            border: `1px solid ${T.border}`,
+            borderLeft: `5px solid ${T.primary}`,
+            borderRadius: '14px',
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '14px',
+            boxShadow: T.shadowSm
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: '280px' }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '12px',
+                background: T.primaryBtn,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                boxShadow: T.primaryBtnShadow ? `0 4px 14px ${T.primaryBtnShadow}` : '0 4px 14px rgba(45, 122, 91, 0.35)',
+                flexShrink: 0
+              }}>
+                <CurrentIcon size={20} />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h3 style={{ fontSize: '0.92rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
+                    {currentTabInfo.label}
+                  </h3>
+                  <span style={{
+                    fontSize: '0.62rem',
+                    fontWeight: '800',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: isLight ? 'rgba(45, 122, 91, 0.10)' : 'rgba(45, 122, 91, 0.22)',
+                    color: T.primary,
+                    border: `1px solid ${isLight ? '#c8ded1' : '#234a38'}`,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em'
+                  }}>
+                    {currentTabInfo.badge}
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.76rem', color: T.txtSecondary, margin: 0, fontWeight: '600', lineHeight: '1.35' }}>
+                  {currentTabInfo.desc}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              <span style={{ fontSize: '0.70rem', color: T.txtMuted, fontWeight: '700', background: T.controlBg, padding: '5px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                ⚖️ Komparasi: <strong style={{ color: T.primary }}>{currentTabInfo.shortLabel}</strong>
+              </span>
+            </div>
+          </div>
+        );
+      })()}
 
       {summaryStats && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>

@@ -35,6 +35,7 @@ import { requestDelete } from '../../utils/deleteGuard';
 
 export default function MasterDataManagement({ masterData, setMasterData, selectedBranch, userSession, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
+  const isLight = themeMode === 'calm_sage' || themeMode === 'soft_blue' || themeMode === 'light';
   const [deleteGuardState, setDeleteGuardState] = useState(null);
 
   const [activeSubTab, setActiveSubTab] = useState('products');
@@ -52,16 +53,16 @@ export default function MasterDataManagement({ masterData, setMasterData, select
   };
 
   const subTabs = [
-    { id: 'products', name: 'Katalog Menu', icon: Package, count: masterData.products.length },
-    { id: 'categories', name: 'Kategori', icon: Layers, count: (masterData.categories?.length || 0) + ((masterData.ingredientCategories || []).length || 6) },
-    { id: 'ingredients', name: 'Bahan Baku', icon: ShoppingBasket, count: (masterData.ingredients || []).length },
-    { id: 'customers', name: 'Pelanggan', icon: Users, count: masterData.customers.length },
-    { id: 'tables', name: 'Meja', icon: Layout, count: masterData.tables.length },
-    { id: 'outlets', name: 'Outlet', icon: Store, count: masterData.outlets.length },
-    { id: 'payments', name: 'Metode Pembayaran', icon: CreditCard, count: masterData.paymentMethods.length },
-    { id: 'suppliers', name: 'Supplier', icon: Truck, count: masterData.suppliers.length },
-    { id: 'units', name: 'Satuan/Unit', icon: Scale, count: masterData.units.length },
-    { id: 'expenses', name: 'Akuntansi', icon: BookOpen, count: (masterData.chartOfAccounts || masterData.expenseMaster || []).length }
+    { id: 'products', name: '1. Katalog Menu', shortLabel: 'Menu Resto', badge: 'Menu Katalog', desc: 'Daftar lengkap produk makanan, minuman, harga jual, estimasi HPP resep, dan status aktif kasir.', icon: Package, count: masterData.products.length },
+    { id: 'categories', name: '2. Kategori Master', shortLabel: 'Kategori', badge: 'Kelompok Item', desc: 'Pengelompokan kategori menu restoran dan kategori bahan baku gudang untuk mempermudah POS & filter.', icon: Layers, count: (masterData.categories?.length || 0) + ((masterData.ingredientCategories || []).length || 6) },
+    { id: 'ingredients', name: '3. Bahan Baku', shortLabel: 'Bahan Baku', badge: 'Inventory Raw', desc: 'Master data bahan baku mentah dapur, harga beli standar per satuan unit, dan batas minimum stok.', icon: ShoppingBasket, count: (masterData.ingredients || []).length },
+    { id: 'customers', name: '4. Pelanggan', shortLabel: 'Pelanggan', badge: 'Loyalty CRM', desc: 'Daftar data member pelanggan, nomor telepon, riwayat akumulasi poin loyalitas, dan status tier.', icon: Users, count: masterData.customers.length },
+    { id: 'tables', name: '5. Meja Resto', shortLabel: 'Meja Resto', badge: 'Table Layout', desc: 'Manajemen nomor meja makan per outlet cabang restoran, kapasitas kursi, dan status ketersediaan.', icon: Layout, count: masterData.tables.length },
+    { id: 'outlets', name: '6. Outlet Cabang', shortLabel: 'Outlet Resto', badge: 'Branch Network', desc: 'Informasi seluruh cabang restoran Barokah Group, alamat, nomor telepon operasional, dan ID sinkronisasi POS.', icon: Store, count: masterData.outlets.length },
+    { id: 'payments', name: '7. Metode Bayar', shortLabel: 'Metode Bayar', badge: 'Payment Channels', desc: 'Pengaturan kanal pembayaran kasir: Tunai (Cash), QRIS LinkAja/BCA, Mesin EDC, Transfer Bank, dan Online Delivery.', icon: CreditCard, count: masterData.paymentMethods.length },
+    { id: 'suppliers', name: '8. Supplier', shortLabel: 'Supplier Vendor', badge: 'Vendor Logistics', desc: 'Database vendor & supplier bahan baku, kontak person (PIC), nomor telepon, dan kesepakatan tempo bayar (TOP).', icon: Truck, count: masterData.suppliers.length },
+    { id: 'units', name: '9. Satuan Unit', shortLabel: 'Satuan Unit', badge: 'Measurement Units', desc: 'Daftar standar satuan takaran logistik dan resep (Kg, Gram, Liter, Pcs, Ikat, Kaleng, Bungkus, Porsi).', icon: Scale, count: masterData.units.length },
+    { id: 'expenses', name: '10. Akun Biaya (COA)', shortLabel: 'Akuntansi COA', badge: 'COA Accounting', desc: 'Bagan akun standar akuntansi (Chart of Accounts), pos biaya operasional outlet, beban gaji, sewa, dan utilitas.', icon: BookOpen, count: (masterData.chartOfAccounts || masterData.expenseMaster || []).length }
   ];
 
   const handleAddItem = (e) => {
@@ -141,83 +142,191 @@ export default function MasterDataManagement({ masterData, setMasterData, select
       </div>
 
       {/* Sticky Sub-Tab Navigation Bar (2-Row Grid: 5 tabs per row) — Enterprise Executive Styling */}
+      {/* Sub-Tab Navigation Bar — SuperApp Circular Icon Grid (GoPay / Modern App Style) */}
       <div style={{
-        position: 'sticky',
-        top: '-20px',
-        zIndex: 1000,
-        margin: '-20px -20px 14px -20px',
-        padding: '14px 20px 12px 20px',
-        background: themeMode === 'soft_blue' ? 'rgba(240, 246, 255, 0.96)' : 'rgba(11, 15, 25, 0.96)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        borderBottom: `1px solid ${T.border}`,
-        boxShadow: themeMode === 'soft_blue' ? '0 6px 20px -4px rgba(0,0,0,0.06)' : '0 6px 20px -4px rgba(0,0,0,0.4)',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(5, 1fr)',
-        gap: '8px',
-        transition: 'all 0.25s ease'
+        background: T.cardBg,
+        borderRadius: '16px',
+        border: `1px solid ${T.border}`,
+        padding: '14px 18px',
+        boxShadow: T.shadowSm,
+        marginBottom: '16px'
       }}>
-        {subTabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeSubTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => { setActiveSubTab(tab.id); setSearchTerm(''); }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '8px',
-                padding: '8px 12px',
-                borderRadius: '10px',
-                border: isActive ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid transparent',
-                background: isActive
-                  ? (themeMode === 'soft_blue' ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, rgba(30, 58, 138, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)')
-                  : (themeMode === 'soft_blue' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(30, 41, 59, 0.4)'),
-                color: isActive ? '#ffffff' : (themeMode === 'soft_blue' ? '#1e4a7c' : '#94a3b8'),
-                fontWeight: isActive ? '900' : '700',
-                fontSize: '0.74rem',
-                letterSpacing: '-0.01em',
-                cursor: 'pointer',
-                transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: isActive
-                  ? (themeMode === 'soft_blue' ? '0 4px 14px rgba(13, 82, 149, 0.3)' : '0 4px 14px rgba(56, 189, 248, 0.25)')
-                  : 'none',
-                transform: isActive ? 'scale(1.01)' : 'none'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))',
+          gap: '8px',
+          alignItems: 'start'
+        }}>
+          {subTabs.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeSubTab === tab.id;
+            return (
+              <div
+                key={tab.id}
+                onClick={() => { setActiveSubTab(tab.id); setSearchTerm(''); }}
+                title={`${tab.name} (${tab.count} data) — ${tab.desc}`}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '8px 4px 6px 4px',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  background: isActive ? (isLight ? 'rgba(45, 122, 91, 0.08)' : 'rgba(45, 122, 91, 0.18)') : 'transparent',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative'
+                }}
+              >
+                {/* Circular Icon Badge */}
                 <div style={{
-                  width: '22px',
-                  height: '22px',
-                  borderRadius: '6px',
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: isActive ? 'rgba(255, 255, 255, 0.18)' : (themeMode === 'soft_blue' ? 'rgba(30, 74, 124, 0.08)' : 'rgba(255, 255, 255, 0.06)'),
-                  flexShrink: 0
+                  background: isActive
+                    ? T.primaryBtn
+                    : (isLight ? '#eef6f2' : '#14291f'),
+                  border: isActive
+                    ? `2px solid ${T.primary}`
+                    : `1.5px solid ${isLight ? '#c8ded1' : '#234a38'}`,
+                  color: isActive ? '#ffffff' : T.primary,
+                  boxShadow: isActive
+                    ? (T.primaryBtnShadow ? `0 6px 16px ${T.primaryBtnShadow}` : '0 6px 16px rgba(45, 122, 91, 0.40)')
+                    : 'none',
+                  transform: isActive ? 'scale(1.06)' : 'none',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative'
                 }}>
-                  <Icon size={13} color={isActive ? '#ffffff' : (themeMode === 'soft_blue' ? '#1a6fc4' : '#38bdf8')} />
+                  <Icon size={20} />
+                  {/* Badge Counter */}
+                  <span style={{
+                    position: 'absolute',
+                    top: '-4px',
+                    right: '-4px',
+                    fontSize: '0.60rem',
+                    fontWeight: '900',
+                    padding: '1px 5px',
+                    borderRadius: '10px',
+                    background: isActive ? '#ffffff' : T.primary,
+                    color: isActive ? T.primary : '#ffffff',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                    border: `1px solid ${isActive ? T.primary : '#ffffff'}`
+                  }}>
+                    {tab.count}
+                  </span>
                 </div>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.name}</span>
+
+                {/* Text Label */}
+                <span style={{
+                  fontSize: '0.74rem',
+                  fontWeight: isActive ? '900' : '700',
+                  color: isActive ? T.primary : T.txtPrimary,
+                  textAlign: 'center',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '100%',
+                  letterSpacing: '-0.01em'
+                }}>
+                  {tab.shortLabel || tab.name}
+                </span>
+
+                {/* Active Indicator Underline */}
+                {isActive && (
+                  <div style={{
+                    width: '18px',
+                    height: '3px',
+                    borderRadius: '2px',
+                    background: T.primary,
+                    marginTop: '-4px'
+                  }} />
+                )}
               </div>
-              <span style={{
-                background: isActive ? 'rgba(255, 255, 255, 0.22)' : (themeMode === 'soft_blue' ? '#eaf4ff' : '#1e293b'),
-                color: isActive ? '#ffffff' : (themeMode === 'soft_blue' ? '#1a6fc4' : '#38bdf8'),
-                fontSize: '0.64rem',
-                fontWeight: '900',
-                padding: '2px 7px',
-                borderRadius: '8px',
-                border: isActive ? '1px solid rgba(255,255,255,0.3)' : `1px solid ${T.border}`,
+            );
+          })}
+        </div>
+      </div>
+
+      {/* DYNAMIC ACTIVE CONTEXT CARD (Penjelasan Lengkap Data Master Saat Diklik) */}
+      {(() => {
+        const currentTabInfo = subTabs.find(t => t.id === activeSubTab) || subTabs[0];
+        const CurrentIcon = currentTabInfo.icon;
+
+        return (
+          <div className="glass-card animate-fade-in" style={{
+            background: T.cardBg,
+            border: `1px solid ${T.border}`,
+            borderLeft: `5px solid ${T.primary}`,
+            borderRadius: '14px',
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '14px',
+            boxShadow: T.shadowSm,
+            marginBottom: '16px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: '280px' }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '12px',
+                background: T.primaryBtn,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                boxShadow: T.primaryBtnShadow ? `0 4px 14px ${T.primaryBtnShadow}` : '0 4px 14px rgba(45, 122, 91, 0.35)',
                 flexShrink: 0
               }}>
-                {tab.count}
+                <CurrentIcon size={20} />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h3 style={{ fontSize: '0.92rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
+                    {currentTabInfo.name}
+                  </h3>
+                  <span style={{
+                    fontSize: '0.62rem',
+                    fontWeight: '800',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: isLight ? 'rgba(45, 122, 91, 0.10)' : 'rgba(45, 122, 91, 0.22)',
+                    color: T.primary,
+                    border: `1px solid ${isLight ? '#c8ded1' : '#234a38'}`,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em'
+                  }}>
+                    {currentTabInfo.badge}
+                  </span>
+                  <span style={{
+                    fontSize: '0.62rem',
+                    fontWeight: '700',
+                    color: T.txtMuted
+                  }}>
+                    • Total: <strong style={{ color: T.primary }}>{currentTabInfo.count} Data Terdaftar</strong>
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.76rem', color: T.txtSecondary, margin: 0, fontWeight: '600', lineHeight: '1.35' }}>
+                  {currentTabInfo.desc}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              <span style={{ fontSize: '0.70rem', color: T.txtMuted, fontWeight: '700', background: T.controlBg, padding: '5px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                🗂️ Data Master: <strong style={{ color: T.primary }}>{currentTabInfo.shortLabel}</strong>
               </span>
-            </button>
-          );
-        })}
-      </div>
+            </div>
+          </div>
+        );
+      })()}
 
 
       {/* Header Actions Bar (Search + Add) */}

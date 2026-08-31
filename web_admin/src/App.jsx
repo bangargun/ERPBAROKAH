@@ -102,20 +102,27 @@ export default function App() {
     window.location.hash.includes('target=leader')
   );
 
+  const isPosPath = typeof window !== 'undefined' && (
+    window.location.search.includes('mode=pos') ||
+    window.location.search.includes('mode=mobile') ||
+    window.location.hash.includes('pos')
+  );
+
   // App View Mode State: 'admin' for Web Browser & Leader App, 'mobile' for POS Kasir Android APK
   const [viewMode, setViewMode] = useState(() => {
+    if (isPosPath) return 'mobile';
     if (isLeaderTarget) return 'admin';
     if (isCapacitorNative) return 'mobile';
     return 'admin';
   });
 
-  // Theme Mode State: 'dark' | 'soft_blue' (Persisted in localStorage)
+  // Theme Mode State: 'calm_sage' | 'dark' (Persisted in localStorage)
   const [themeMode, setThemeModeState] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('mris_web_theme');
-      if (saved === 'dark' || saved === 'soft_blue') return saved;
+      if (saved === 'calm_sage' || saved === 'dark') return saved;
     }
-    return 'dark';
+    return 'calm_sage'; // Fresh Calm Sage as default
   });
 
   // Apply data-theme attribute to root element so CSS variables cascade globally to ALL components
@@ -125,13 +132,14 @@ export default function App() {
   }, [themeMode]);
 
   const setThemeMode = (mode) => {
-    setThemeModeState(mode);
-    try { localStorage.setItem('mris_web_theme', mode); } catch (e) {}
+    const validMode = mode === 'dark' ? 'dark' : 'calm_sage';
+    setThemeModeState(validMode);
+    try { localStorage.setItem('mris_web_theme', validMode); } catch (e) {}
   };
 
   const toggleThemeMode = () => {
     setThemeModeState(prev => {
-      const next = prev === 'dark' ? 'soft_blue' : 'dark';
+      const next = prev === 'calm_sage' ? 'dark' : 'calm_sage';
       try { localStorage.setItem('mris_web_theme', next); } catch (e) {}
       return next;
     });
