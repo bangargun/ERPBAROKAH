@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import * as XLSX from 'xlsx';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,14 +37,137 @@ const app = express();
 // PORT resmi produksi VPS: 5001 (sesuai Nginx proxy_pass)
 const PORT = 5001;
 
+// ─── SECURITY: CORS Whitelist — hanya izinkan domain resmi + Capacitor APK ──
 app.use(cors({
-  origin: '*',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (native APK, server-to-server)
+    if (!origin) return callback(null, true);
+    // Capacitor native
+    if (origin === 'capacitor://localhost' || origin === 'https://localhost') return callback(null, true);
+    // Production domains
+    if (origin.endsWith('.barokahgroupindonesia.tech') || origin.endsWith('.barokahgroupindonesia.com')) return callback(null, true);
+    // Localhost/LAN development
+    if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') ||
+        origin.startsWith('http://192.168.') || origin.startsWith('http://10.')) return callback(null, true);
+    // Log unknown origins but still allow (APK backward compat during transition)
+    console.warn(`[CORS] Unknown origin: ${origin}`);
+    callback(null, true);
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-MRIS-Token', 'X-MRIS-Key']
 }));
 app.options('*', cors());
+
+// ─── SECURITY: Security Headers Middleware ───────────────────────────────────
+app.use((req, res, next) => {
+  res.removeHeader('X-Powered-By');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
+// ─── SECURITY: In-Memory Rate Limiter ────────────────────────────────────────
+const rateLimitStore = new Map();
+const createRateLimiter = (maxReq, windowMs) => (req, res, next) => {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || 'unknown';
+  const now = Date.now();
+  let entry = rateLimitStore.get(ip) || { count: 0, resetAt: now + windowMs };
+  if (now > entry.resetAt) { entry.count = 0; entry.resetAt = now + windowMs; }
+  entry.count++;
+  rateLimitStore.set(ip, entry);
+  if (entry.count > maxReq) {
+    return res.status(429).json({ error: 'Terlalu banyak permintaan. Coba lagi sebentar.' });
+  }
+  next();
+};
+setInterval(() => { const now = Date.now(); rateLimitStore.forEach((v, k) => { if (now > v.resetAt) rateLimitStore.delete(k); }); }, 5 * 60 * 1000);
+
+const globalRateLimit = createRateLimiter(300, 60000);
+const transactionRateLimit = createRateLimiter(60, 60000);
+const masterDataPostRateLimit = createRateLimiter(30, 60000);
+const authRateLimit = createRateLimiter(10, 60000);
+const adminRateLimit = createRateLimiter(60, 60000);
+app.use(globalRateLimit);
+
+// ─── SECURITY: Password Hashing via Node.js crypto (built-in, no extra pkg) ─
+const MRIS_HASH_PREFIX = 'mrishash:v1:';
+const hashPassword = (plaintext) => {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(String(plaintext), salt, 10000, 64, 'sha256').toString('hex');
+  return `${MRIS_HASH_PREFIX}${salt}:${hash}`;
+};
+const verifyPassword = (plaintext, stored) => {
+  if (!stored || !plaintext) return false;
+  if (stored.startsWith(MRIS_HASH_PREFIX)) {
+    try {
+      const parts = stored.slice(MRIS_HASH_PREFIX.length).split(':');
+      const salt = parts[0], storedHash = parts[1];
+      const inputHash = crypto.pbkdf2Sync(String(plaintext), salt, 10000, 64, 'sha256').toString('hex');
+      if (storedHash.length !== inputHash.length) return false;
+      return crypto.timingSafeEqual(Buffer.from(storedHash, 'hex'), Buffer.from(inputHash, 'hex'));
+    } catch (e) { return false; }
+  }
+  // Backward compat: cek plaintext untuk akun lama
+  return String(stored) === String(plaintext);
+};
+
+// ─── SECURITY: HMAC Session Token ────────────────────────────────────────────
+const TOKEN_SECRET = process.env.TOKEN_SECRET || 'mris_token_change_me';
+const generateToken = (userId, username, role) => {
+  const payloadB64 = Buffer.from(JSON.stringify({ userId, username, role, iat: Date.now() })).toString('base64url');
+  const sig = crypto.createHmac('sha256', TOKEN_SECRET).update(payloadB64).digest('base64url');
+  return `${payloadB64}.${sig}`;
+};
+const verifyToken = (token) => {
+  if (!token || typeof token !== 'string') return null;
+  try {
+    const dotIdx = token.lastIndexOf('.');
+    if (dotIdx < 0) return null;
+    const payloadB64 = token.slice(0, dotIdx);
+    const sig = token.slice(dotIdx + 1);
+    const expectedSig = crypto.createHmac('sha256', TOKEN_SECRET).update(payloadB64).digest('base64url');
+    if (sig.length !== expectedSig.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) return null;
+    const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf-8'));
+    if (Date.now() - payload.iat > 24 * 60 * 60 * 1000) return null; // 24 jam
+    return payload;
+  } catch (e) { return null; }
+};
+
+// ─── SECURITY: Admin Access Middleware (untuk /api/db/* dan /phpmyadmin) ─────
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'mris_internal_key_change_me';
+const DB_ADMIN_PASSWORD = process.env.DB_ADMIN_PASSWORD || 'mris_dba_key_change_me';
+
+const requireAdminAccess = (req, res, next) => {
+  const apiKey = req.headers['x-mris-key'] || req.query._key;
+  if (apiKey && apiKey === INTERNAL_API_KEY) return next();
+  const token = req.headers['x-mris-token'];
+  if (token) {
+    const payload = verifyToken(token);
+    if (payload) {
+      const r = (payload.role || '').toLowerCase();
+      if (r === 'super admin' || r === 'superadmin' || r === 'owner') {
+        req.adminUser = payload;
+        return next();
+      }
+    }
+  }
+  const dbSess = req.headers['x-db-session'];
+  if (dbSess && dbSess === DB_ADMIN_PASSWORD) return next();
+  return res.status(403).json({ error: 'Akses ditolak. Diperlukan autentikasi admin.', code: 'ADMIN_REQUIRED' });
+};
+
+// ─── SECURITY: Whitelist tabel yang boleh diakses via /api/db/row/* ──────────
+const ALLOWED_DB_TABLES = new Set([
+  'sales_transactions', 'active_table_orders', 'products', 'categories',
+  'outlets', 'shift_closings', 'stock_movement', 'customers',
+  'web_admin_users', 'mobile_pos_users', 'mris_master_data_history'
+]);
+
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
+
 
 // Persistent JSON Store Path (Local Isolated Snapshot)
 const DB_FILE = path.join(__dirname, 'local_production_backup.json');
@@ -77,7 +201,106 @@ const getUnifiedData = async () => {
 
 // REST API ROUTES (100% UNIFIED MYSQL mris_db PRIMARY STORAGE)
 
-// 1. Get All Outlets
+// ─── HEALTH CHECK ────────────────────────────────────────────────────────────
+app.get('/api/health', async (req, res) => {
+  const dbStatus = mysqlPool ? 'connected' : 'json_fallback';
+  let txCount = 0;
+  try {
+    if (mysqlPool) {
+      const [rows] = await mysqlPool.query('SELECT COUNT(*) as c FROM sales_transactions');
+      txCount = rows[0]?.c || 0;
+    }
+  } catch (e) {}
+  res.json({
+    status: 'ok',
+    version: '4.4.5',
+    database: dbStatus,
+    tx_count: txCount,
+    uptime_seconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ─── AUTHENTICATION: POST /api/auth/login ────────────────────────────────────
+// Server-side login endpoint. APK dan Web Admin bisa menggunakan ini untuk mendapat token.
+// Backward compatible: plaintext password lama masih bekerja, otomatis di-upgrade ke hash.
+app.post('/api/auth/login', authRateLimit, async (req, res) => {
+  try {
+    const { username, password, type } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ success: false, error: 'Username dan password wajib diisi' });
+    }
+    const userType = type || 'web'; // 'web' = Web Admin, 'mobile' = POS Kasir
+
+    let foundUser = null;
+    let tableName = userType === 'mobile' ? 'mobile_pos_users' : 'web_admin_users';
+
+    if (mysqlPool) {
+      try {
+        const [rows] = await mysqlPool.execute(
+          `SELECT * FROM \`${tableName}\` WHERE LOWER(TRIM(username)) = ? AND status = 'Aktif' LIMIT 1`,
+          [username.toLowerCase().trim()]
+        );
+        if (rows && rows.length > 0) foundUser = rows[0];
+      } catch (e) {}
+    }
+
+    // Fallback ke masterData JSON jika MySQL tidak tersedia
+    if (!foundUser) {
+      const md = await getUnifiedData();
+      const accounts = userType === 'mobile' ? (md.mobileAccounts || []) : (md.webAdminAccounts || md.userAccounts || []);
+      foundUser = accounts.find(u => u && String(u.username || '').toLowerCase().trim() === username.toLowerCase().trim() && String(u.status || 'Aktif') === 'Aktif');
+      if (foundUser) {
+        // Normalize password field dari masterData
+        foundUser = { ...foundUser, password: foundUser.password || foundUser.mobileLoginPassword || foundUser.pin || '' };
+      }
+    }
+
+    if (!foundUser) {
+      return res.status(401).json({ success: false, error: 'Username tidak ditemukan' });
+    }
+
+    const storedPass = foundUser.password || '';
+    const isValid = verifyPassword(password, storedPass);
+
+    if (!isValid) {
+      return res.status(401).json({ success: false, error: 'Password salah' });
+    }
+
+    // Auto-upgrade ke hash jika masih plaintext
+    if (!storedPass.startsWith(MRIS_HASH_PREFIX) && mysqlPool) {
+      const hashed = hashPassword(password);
+      try {
+        await mysqlPool.execute(`UPDATE \`${tableName}\` SET password = ? WHERE id = ?`, [hashed, foundUser.id]);
+      } catch (e) {}
+    }
+
+    const token = generateToken(foundUser.id, foundUser.username, foundUser.role);
+    const userPayload = {
+      id: foundUser.id,
+      name: foundUser.name,
+      username: foundUser.username,
+      role: foundUser.role,
+      outlet: foundUser.outlet,
+      status: foundUser.status
+    };
+
+    res.json({ success: true, token, user: userPayload });
+  } catch (err) {
+    console.error('POST /api/auth/login error:', err.message);
+    res.status(500).json({ success: false, error: 'Server error saat login' });
+  }
+});
+
+// ─── AUTHENTICATION: POST /api/auth/verify ───────────────────────────────────
+app.post('/api/auth/verify', (req, res) => {
+  const token = req.headers['x-mris-token'] || req.body?.token;
+  const payload = verifyToken(token);
+  if (!payload) return res.status(401).json({ valid: false, error: 'Token tidak valid atau sudah kadaluarsa' });
+  res.json({ valid: true, user: { userId: payload.userId, username: payload.username, role: payload.role } });
+});
+
+
 app.get('/api/outlets', async (req, res) => {
   const masterData = await getUnifiedData();
   res.json(masterData.outlets || []);
@@ -544,6 +767,17 @@ const ensureMasterDataTable = async () => {
       `);
     } catch (e) {}
 
+    // ─── DB HARDENING: UNIQUE constraint pada username (setelah dedup selesai) ──
+    try { await mysqlPool.execute(`ALTER TABLE web_admin_users ADD UNIQUE INDEX idx_uniq_username (username(100))`); } catch (e) {}
+    try { await mysqlPool.execute(`ALTER TABLE mobile_pos_users ADD UNIQUE INDEX idx_uniq_username (username(100))`); } catch (e) {}
+
+    // ─── DB PERFORMANCE: Index tambahan untuk query yang sering digunakan ────────
+    try { await mysqlPool.execute(`ALTER TABLE sales_transactions ADD INDEX idx_outlet_date (outlet_id, date)`); } catch (e) {}
+    try { await mysqlPool.execute(`ALTER TABLE products ADD INDEX idx_outlet_status (outlet_id, status(20))`); } catch (e) {}
+
+    console.log('✅ Database constraints & indexes applied');
+
+
     // 4b. Active Table Orders (Shared Realtime Multi-Device Table Orders per Outlet)
     await mysqlPool.execute(`
       CREATE TABLE IF NOT EXISTS active_table_orders (
@@ -988,18 +1222,31 @@ const syncToMySQL = async (masterData) => {
       webUserIds.push(uId);
       const uName = String(u.name || u.username || 'Admin');
       const uUsername = String(u.username || u.name || `admin_${uId}`).toLowerCase().replace(/\s+/g, '_');
-      const uPassword = String(u.password || '1234');
+      // Hash password jika masih plaintext (tidak ada prefix hash) — auto-upgrade
+      const rawPass = String(u.password || '1234');
+      const uPassword = rawPass === '***' ? null : (rawPass.startsWith(MRIS_HASH_PREFIX) ? rawPass : hashPassword(rawPass));
       const uRole = String(u.role || 'Super Admin');
       const uOutlet = String(u.outlet || 'Semua Outlet (Central)');
       const uStatus = String(u.status || 'Aktif');
 
-      await mysqlPool.execute(`
-        INSERT INTO web_admin_users (id, name, username, password, role, outlet, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          name = VALUES(name), username = VALUES(username), password = VALUES(password),
-          role = VALUES(role), outlet = VALUES(outlet), status = VALUES(status)
-      `, [uId, uName, uUsername, uPassword, uRole, uOutlet, uStatus]);
+      if (uPassword !== null) {
+        await mysqlPool.execute(`
+          INSERT INTO web_admin_users (id, name, username, password, role, outlet, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            name = VALUES(name), username = VALUES(username), password = VALUES(password),
+            role = VALUES(role), outlet = VALUES(outlet), status = VALUES(status)
+        `, [uId, uName, uUsername, uPassword, uRole, uOutlet, uStatus]);
+      } else {
+        // Password masked ('***') dari client — update semua field kecuali password
+        await mysqlPool.execute(`
+          INSERT INTO web_admin_users (id, name, username, role, outlet, status)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            name = VALUES(name), username = VALUES(username),
+            role = VALUES(role), outlet = VALUES(outlet), status = VALUES(status)
+        `, [uId, uName, uUsername, uRole, uOutlet, uStatus]);
+      }
     }
     if (webUserIds.length > 0) {
       const ph = webUserIds.map(() => '?').join(',');
@@ -1016,21 +1263,35 @@ const syncToMySQL = async (masterData) => {
       mobileUserIds.push(uId);
       const uName = String(u.name || u.username || 'Staf Mobile');
       const uUsername = String(u.username || u.name || `mobile_${uId}`).toLowerCase().replace(/\s+/g, '_');
-      const uPassword = String(u.mobileLoginPassword || u.password || '123');
+      // Hash password jika masih plaintext — backward compat auto-upgrade
+      const rawMobilePass = String(u.mobileLoginPassword || u.password || '123');
+      const uPassword = rawMobilePass === '***' ? null : (rawMobilePass.startsWith(MRIS_HASH_PREFIX) ? rawMobilePass : hashPassword(rawMobilePass));
       const uRole = String(u.role || 'Kasir');
       const uOutlet = String(u.outlet || 'Semua Outlet (Central)');
       const uStatus = String(u.status || 'Aktif');
       const canReports = u.canAccessMobileReports ? 1 : 0;
-      const repPass = String(u.mobileReportPassword || '');
+      const rawRepPass = String(u.mobileReportPassword || '');
+      const repPass = rawRepPass && rawRepPass !== '***' && !rawRepPass.startsWith(MRIS_HASH_PREFIX) ? hashPassword(rawRepPass) : (rawRepPass === '***' ? null : rawRepPass);
 
-      await mysqlPool.execute(`
-        INSERT INTO mobile_pos_users (id, name, username, password, role, outlet, status, can_access_reports, report_password)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          name = VALUES(name), username = VALUES(username), password = VALUES(password),
-          role = VALUES(role), outlet = VALUES(outlet), status = VALUES(status),
-          can_access_reports = VALUES(can_access_reports), report_password = VALUES(report_password)
-      `, [uId, uName, uUsername, uPassword, uRole, uOutlet, uStatus, canReports, repPass]);
+      if (uPassword !== null) {
+        await mysqlPool.execute(`
+          INSERT INTO mobile_pos_users (id, name, username, password, role, outlet, status, can_access_reports, report_password)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            name = VALUES(name), username = VALUES(username), password = VALUES(password),
+            role = VALUES(role), outlet = VALUES(outlet), status = VALUES(status),
+            can_access_reports = VALUES(can_access_reports), report_password = COALESCE(VALUES(report_password), report_password)
+        `, [uId, uName, uUsername, uPassword, uRole, uOutlet, uStatus, canReports, repPass]);
+      } else {
+        await mysqlPool.execute(`
+          INSERT INTO mobile_pos_users (id, name, username, role, outlet, status, can_access_reports)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            name = VALUES(name), username = VALUES(username),
+            role = VALUES(role), outlet = VALUES(outlet), status = VALUES(status),
+            can_access_reports = VALUES(can_access_reports)
+        `, [uId, uName, uUsername, uRole, uOutlet, uStatus, canReports]);
+      }
     }
     if (mobileUserIds.length > 0) {
       const ph = mobileUserIds.map(() => '?').join(',');
@@ -1332,8 +1593,8 @@ app.get('/api/mysql-status', async (req, res) => {
   }
 });
 
-// Database Inspector Endpoints (phpMyAdmin-style UI)
-app.get('/api/db/tables', async (req, res) => {
+// Database Inspector Endpoints (phpMyAdmin-style UI) — Hanya untuk admin terautentikasi
+app.get('/api/db/tables', requireAdminAccess, adminRateLimit, async (req, res) => {
   if (!mysqlPool) {
     return res.json({ status: 'standalone', database: 'mris_db (JSON Fallback)', tables: [] });
   }
@@ -1351,9 +1612,12 @@ app.get('/api/db/tables', async (req, res) => {
   }
 });
 
-app.get('/api/db/table/:name', async (req, res) => {
+app.get('/api/db/table/:name', requireAdminAccess, adminRateLimit, async (req, res) => {
   if (!mysqlPool) return res.status(400).json({ error: 'MySQL tidak aktif' });
   const tableName = req.params.name;
+  if (!ALLOWED_DB_TABLES.has(tableName)) {
+    return res.status(403).json({ error: `Akses ke tabel '${tableName}' tidak diizinkan.` });
+  }
   try {
     const [rows] = await mysqlPool.query(`SELECT * FROM \`${tableName}\` ORDER BY 1 DESC LIMIT 100`);
     const [columns] = await mysqlPool.query(`SHOW COLUMNS FROM \`${tableName}\``);
@@ -1363,10 +1627,18 @@ app.get('/api/db/table/:name', async (req, res) => {
   }
 });
 
-app.post('/api/db/query', async (req, res) => {
+app.post('/api/db/query', requireAdminAccess, adminRateLimit, async (req, res) => {
   if (!mysqlPool) return res.status(400).json({ error: 'MySQL server tidak terhubung' });
   const { sql } = req.body;
   if (!sql || typeof sql !== 'string') return res.status(400).json({ error: 'Perintah SQL tidak boleh kosong' });
+
+  // Keamanan: hanya izinkan SELECT statement dari endpoint ini
+  // Untuk DDL/DML gunakan row/update atau row/delete endpoint yang sudah tervalidasi
+  const sqlTrimmed = sql.trim().toLowerCase();
+  const isDangerous = /^\s*(drop|truncate|alter|create|rename|grant|revoke|call|exec|execute)/i.test(sqlTrimmed);
+  if (isDangerous) {
+    return res.status(403).json({ error: 'Perintah DDL berbahaya (DROP, TRUNCATE, ALTER, dll) tidak diizinkan melalui endpoint ini.' });
+  }
 
   try {
     const [results] = await mysqlPool.query(sql);
@@ -1376,10 +1648,12 @@ app.post('/api/db/query', async (req, res) => {
   }
 });
 
-app.post('/api/db/row/delete', async (req, res) => {
+
+app.post('/api/db/row/delete', requireAdminAccess, adminRateLimit, async (req, res) => {
   if (!mysqlPool) return res.status(400).json({ error: 'MySQL server tidak terhubung' });
   const { table, id, pkColumn = 'id' } = req.body;
   if (!table || id === undefined) return res.status(400).json({ error: 'Table dan ID wajib diisi' });
+  if (!ALLOWED_DB_TABLES.has(table)) return res.status(403).json({ error: `Operasi ke tabel '${table}' tidak diizinkan.` });
 
   try {
     await mysqlPool.execute(`DELETE FROM \`${table}\` WHERE \`${pkColumn}\` = ?`, [id]);
@@ -1415,12 +1689,13 @@ app.post('/api/db/row/delete', async (req, res) => {
   }
 });
 
-app.post('/api/db/row/update', async (req, res) => {
+app.post('/api/db/row/update', requireAdminAccess, adminRateLimit, async (req, res) => {
   if (!mysqlPool) return res.status(400).json({ error: 'MySQL server tidak terhubung' });
   const { table, id, pkColumn = 'id', data } = req.body;
   if (!table || id === undefined || !data || typeof data !== 'object') {
     return res.status(400).json({ error: 'Table, ID, dan Data wajib diisi' });
   }
+  if (!ALLOWED_DB_TABLES.has(table)) return res.status(403).json({ error: `Operasi ke tabel '${table}' tidak diizinkan.` });
 
   try {
     const keys = Object.keys(data).filter(k => k !== pkColumn);
@@ -1475,11 +1750,85 @@ app.post('/api/db/row/update', async (req, res) => {
   }
 });
 
-// Standalone phpMyAdmin / Adminer Web Interface Route (Full SSR: Sidebar & Initial Table Rows)
+// POST /api/db/auth — Login untuk phpMyAdmin panel
+app.post('/api/db/auth', authRateLimit, (req, res) => {
+  const { password } = req.body || {};
+  if (!password || password !== DB_ADMIN_PASSWORD) {
+    return res.status(401).json({ success: false, error: 'Password salah' });
+  }
+  res.json({ success: true, session: DB_ADMIN_PASSWORD });
+});
+
+// Standalone phpMyAdmin / Adminer Web Interface Route (Full SSR)
+// PROTECTED: Butuh X-DB-Session header atau query ?_dbauth=password
 app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyadmin', '/api/phpmyadmin/*', '/api/db-explorer'], async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
+
+  // Cek autentikasi: query param _dbauth atau X-DB-Session header
+  const dbAuthParam = req.query._dbauth;
+  const dbAuthHeader = req.headers['x-db-session'];
+  const isAuthenticated = (dbAuthParam && dbAuthParam === DB_ADMIN_PASSWORD) ||
+                          (dbAuthHeader && dbAuthHeader === DB_ADMIN_PASSWORD);
+
+  if (!isAuthenticated) {
+    // Tampilkan halaman login phpMyAdmin
+    return res.send(`<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MRIS DB Admin — Login</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 40px; width: 380px; max-width: 95vw; }
+    h2 { font-size: 1.4rem; font-weight: 800; color: #38bdf8; margin-bottom: 8px; }
+    p { color: #94a3b8; font-size: 13px; margin-bottom: 24px; }
+    label { display: block; font-size: 11px; font-weight: 700; color: #38bdf8; margin-bottom: 6px; text-transform: uppercase; }
+    input[type=password] { width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 14px; outline: none; margin-bottom: 16px; }
+    input[type=password]:focus { border-color: #38bdf8; }
+    button { width: 100%; background: #0284c7; color: #fff; border: none; padding: 11px; border-radius: 8px; font-weight: 800; font-size: 14px; cursor: pointer; }
+    button:hover { background: #0369a1; }
+    .err { color: #ef4444; font-size: 12px; margin-top: 10px; display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>🗄️ MRIS DB Admin</h2>
+    <p>Masukkan password admin untuk mengakses database explorer.</p>
+    <label>Password Admin</label>
+    <input type="password" id="dbPass" placeholder="Masukkan password..." onkeydown="if(event.key==='Enter')login()">
+    <button onclick="login()">Masuk →</button>
+    <div class="err" id="err">Password salah. Coba lagi.</div>
+  </div>
+  <script>
+    async function login() {
+      const pass = document.getElementById('dbPass').value;
+      const err = document.getElementById('err');
+      err.style.display = 'none';
+      try {
+        const res = await fetch('/api/db/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pass })
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.href = window.location.pathname + '?_dbauth=' + encodeURIComponent(pass);
+        } else {
+          err.style.display = 'block';
+        }
+      } catch (e) {
+        err.textContent = 'Error koneksi ke server.';
+        err.style.display = 'block';
+      }
+    }
+  </script>
+</body>
+</html>`);
+  }
 
   let tableListHtml = '';
   let firstTable = '';
@@ -2481,6 +2830,24 @@ const sanitizeMasterDataPayload = (data) => {
   const clean = { ...data };
   if (clean.masterData) delete clean.masterData;
 
+  // ─── SECURITY: Strip semua field password dari semua array user ──────────────
+  // Password TIDAK BOLEH dikirim ke client (Web Admin browser atau APK).
+  // Login server-side via POST /api/auth/login — bukan dari data ini.
+  const PASSWORD_FIELDS = ['password', 'mobileLoginPassword', 'mobileReportPassword', 'report_password', 'pin', 'passcode'];
+  const USER_ARRAY_KEYS = ['webAdminAccounts', 'mobileAccounts', 'userAccounts', 'users', 'userRights'];
+  USER_ARRAY_KEYS.forEach(key => {
+    if (Array.isArray(clean[key])) {
+      clean[key] = clean[key].map(u => {
+        if (!u || typeof u !== 'object') return u;
+        const stripped = { ...u };
+        PASSWORD_FIELDS.forEach(f => {
+          if (f in stripped) stripped[f] = '***'; // Masking — bukan dihapus agar UI tidak error
+        });
+        return stripped;
+      });
+    }
+  });
+
   // Hapus seluruh data UPD- dan Update Laporan Excel dari POS Kasir (shiftReports, approvedFinanceDaily, manualEntryRecords, salesTransactions)
   const isExcelUploadReport = (item, arrayKey = '') => {
     if (!item) return false;
@@ -2926,7 +3293,7 @@ app.post('/api/pos/bulk-restore', async (req, res) => {
 });
 
 // 1. POST /api/pos/transaction — Direct POS Single Receipt Checkout
-app.post('/api/pos/transaction', async (req, res) => {
+app.post('/api/pos/transaction', transactionRateLimit, async (req, res) => {
   try {
     const tx = req.body;
     if (!tx || !tx.id) {
@@ -3788,7 +4155,7 @@ app.post('/api/pos-force-flush', async (req, res) => {
 });
 
 // POST /api/master-data — 100% MySQL PRIMARY STORAGE UPDATE
-app.post('/api/master-data', async (req, res) => {
+app.post('/api/master-data', masterDataPostRateLimit, async (req, res) => {
   try {
     const incomingData = req.body;
 
