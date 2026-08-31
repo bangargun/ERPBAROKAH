@@ -964,11 +964,12 @@ const ensureMasterDataTable = async () => {
       )
     `);
 
-    // Auto-create MySQL Performance Indexes for Ultra-Responsive Queries
+    // Auto-create MySQL Performance & Deduplication Indexes
     try { await mysqlPool.execute(`CREATE INDEX idx_web_user_name ON web_admin_users (username)`); } catch (e) {}
     try { await mysqlPool.execute(`CREATE INDEX idx_mob_user_name ON mobile_pos_users (username)`); } catch (e) {}
     try { await mysqlPool.execute(`CREATE INDEX idx_sales_date_outlet ON sales_transactions (date, outlet_id)`); } catch (e) {}
     try { await mysqlPool.execute(`CREATE INDEX idx_products_outlet ON products (outlet_id, category_id)`); } catch (e) {}
+    try { await mysqlPool.execute(`ALTER TABLE stock_movement ADD UNIQUE INDEX idx_uniq_stock_movement (date, time, ingredient_name(100), type, qty, outlet_id)`); } catch (e) {}
 
     console.log('✅ Semua tabel relasional MySQL & Index Performa siap');
   } catch (err) {
@@ -1129,28 +1130,38 @@ const getMasterDataFromMySQL = async () => {
   }
 };
 
-// Simpan masterData ke MySQL dengan Automatic Versioning Snapshot Backup (Rolling 50 Versi)
+// Simpan masterData ke MySQL dengan Automatic Versioning Snapshot Backup (Rolling 10 Versi Ringan)
 const saveMasterDataToMySQL = async (masterData, sourceTag = 'general_save') => {
   if (!masterData) return false;
   saveDb(masterData);
   if (!mysqlPool) return true;
   try {
-    const json = JSON.stringify(masterData);
+    // ─── OPTIMASI STORAGE: Rampingkan JSON sebelum disimpan ke MySQL ──────────
+    // Hapus duplikasi array transaksi yang redundant (salesTransactions sudah jadi master)
+    const cleanMasterDataForDb = { ...masterData };
+    if (cleanMasterDataForDb.transactions && Array.isArray(cleanMasterDataForDb.salesTransactions)) {
+      delete cleanMasterDataForDb.transactions;
+    }
+    if (cleanMasterDataForDb.outletTransactions && Array.isArray(cleanMasterDataForDb.salesTransactions)) {
+      delete cleanMasterDataForDb.outletTransactions;
+    }
+
+    const json = JSON.stringify(cleanMasterDataForDb);
     const txCount = Array.isArray(masterData.salesTransactions) ? masterData.salesTransactions.length : 0;
 
-    // 1. Simpan Snapshot ke History Table
+    // 1. Simpan Snapshot ke History Table (Rolling 10 Snapshot Ringan)
     try {
       await mysqlPool.execute(`
         INSERT INTO mris_master_data_history (tx_count, source_tag, data)
         VALUES (?, ?, ?)
       `, [txCount, String(sourceTag || 'auto').substring(0, 100), json]);
 
-      // Batasi history maksimal 50 snapshot terbaru (auto-prune tertua)
+      // Batasi history maksimal 10 snapshot terbaru (auto-prune tertua)
       await mysqlPool.execute(`
         DELETE FROM mris_master_data_history
         WHERE id NOT IN (
           SELECT id FROM (
-            SELECT id FROM mris_master_data_history ORDER BY id DESC LIMIT 50
+            SELECT id FROM mris_master_data_history ORDER BY id DESC LIMIT 10
           ) as t
         )
       `);
@@ -1568,7 +1579,7 @@ const syncToMySQL = async (masterData) => {
 
       try {
         await mysqlPool.execute(`
-          INSERT INTO stock_movement (date, time, ingredient_name, type, qty, unit, outlet_id, source_outlet, target_outlet, reason, user_name)
+          INSERT IGNORE INTO stock_movement (date, time, ingredient_name, type, qty, unit, outlet_id, source_outlet, target_outlet, reason, user_name)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [smDate, smTime, smName, smType, smQty, smUnit, smOutletId, smSource, smTarget, smReason, smUser]);
       } catch (smErr) {}
