@@ -2835,29 +2835,10 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
   return result;
 };
 
-// Sanitizer otomatis — menjamin data input pengguna 100% aman dan tidak terhapus
 const sanitizeMasterDataPayload = (data) => {
   if (!data || typeof data !== 'object') return data;
   const clean = { ...data };
   if (clean.masterData) delete clean.masterData;
-
-  // ─── SECURITY: Strip semua field password dari semua array user ──────────────
-  // Password TIDAK BOLEH dikirim ke client (Web Admin browser atau APK).
-  // Login server-side via POST /api/auth/login — bukan dari data ini.
-  const PASSWORD_FIELDS = ['password', 'mobileLoginPassword', 'mobileReportPassword', 'report_password', 'pin', 'passcode'];
-  const USER_ARRAY_KEYS = ['webAdminAccounts', 'mobileAccounts', 'userAccounts', 'users', 'userRights'];
-  USER_ARRAY_KEYS.forEach(key => {
-    if (Array.isArray(clean[key])) {
-      clean[key] = clean[key].map(u => {
-        if (!u || typeof u !== 'object') return u;
-        const stripped = { ...u };
-        PASSWORD_FIELDS.forEach(f => {
-          if (f in stripped) stripped[f] = '***'; // Masking — bukan dihapus agar UI tidak error
-        });
-        return stripped;
-      });
-    }
-  });
 
   // Hapus seluruh data UPD- dan Update Laporan Excel dari POS Kasir (shiftReports, approvedFinanceDaily, manualEntryRecords, salesTransactions)
   const isExcelUploadReport = (item, arrayKey = '') => {
