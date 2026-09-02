@@ -16,17 +16,13 @@ export const getApiUrl = (pathStr = '') => {
       return `https://mris-api.barokahgroupindonesia.tech${cleanPath}`;
     }
 
-    const hostname = window.location.hostname || '';
-
     // 2. Production Web Admin Browser (*.barokahgroupindonesia.tech)
     if (window.location.origin.includes('barokahgroupindonesia.tech')) {
       return cleanPath;
     }
 
-    // 3. Localhost Browser Development (Developer PC Browser via Vite / Dev Server)
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.')) {
-      return `http://${hostname}:5001${cleanPath}`;
-    }
+    // 3. Localhost Browser Development -> Terhubung langsung ke Live Production Cloud API
+    return `https://mris-api.barokahgroupindonesia.tech${cleanPath}`;
   }
 
   // 4. Fallback default
@@ -34,3 +30,4 @@ export const getApiUrl = (pathStr = '') => {
 };
 
 export default getApiUrl;
+
