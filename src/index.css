@@ -583,3 +583,74 @@ table td span, table td div { white-space: nowrap; }
 .pos-printer-container .subtext-light {
   color: #cbd5e1 !important;
 }
+
+/* ═══════════════════════════════════════════
+   HIGH-CONTRAST POS KASIR CSS VARIABLES
+   ═══════════════════════════════════════════ */
+:root,
+[data-theme="dark"],
+.pos-wrapper {
+  --pos-bg-app: #0b0f19;
+  --pos-bg-sidebar: #080d1a;
+  --pos-bg-card: #131b2e;
+  --pos-bg-card-hover: #1a243b;
+  --pos-bg-surface: #111625;
+  --pos-bg-input: #1a243b;
+  --pos-bg-header: #0c1b33;
+  --pos-bg-modal: #131b2e;
+  --pos-bg-overlay: rgba(0, 0, 0, 0.75);
+
+  --pos-txt-primary: #f8fafc;
+  --pos-txt-secondary: #cbd5e1;
+  --pos-txt-muted: #94a3b8;
+  --pos-txt-white: #ffffff;
+
+  --pos-border: rgba(255, 255, 255, 0.15);
+  --pos-border-card: rgba(255, 255, 255, 0.15);
+  --pos-border-subtle: #475569;
+
+  --pos-primary: #3b82f6;
+  --pos-primary-hover: #2563eb;
+}
+
+[data-theme="calm_sage"],
+[data-theme="calm_sage"] .pos-wrapper,
+.pos-wrapper[data-theme="calm_sage"] {
+  --pos-bg-app: #f3f7f4;
+  --pos-bg-sidebar: #152e22;
+  --pos-bg-card: #ffffff;
+  --pos-bg-card-hover: #eaf2ec;
+  --pos-bg-surface: #ffffff;
+  --pos-bg-input: #ffffff;
+  --pos-bg-header: #ffffff;
+  --pos-bg-modal: #ffffff;
+  --pos-bg-overlay: rgba(21, 46, 34, 0.60);
+
+  --pos-txt-primary: #152e22;
+  --pos-txt-secondary: #28533f;
+  --pos-txt-muted: #587c6b;
+  --pos-txt-white: #ffffff;
+
+  --pos-border: #c8ded1;
+  --pos-border-card: #c8ded1;
+  --pos-border-subtle: #9ec4ad;
+
+  --pos-primary: #2d7a5b;
+  --pos-primary-hover: #1b533c;
+}
+
+/* Specific contrast booster for POS history, shift, and tables */
+.pos-wrapper table th {
+  color: var(--pos-txt-primary) !important;
+  font-weight: 800 !important;
+}
+.pos-wrapper table td {
+  color: var(--pos-txt-primary) !important;
+}
+.pos-wrapper input[type="text"],
+.pos-wrapper input[type="date"],
+.pos-wrapper input[type="number"],
+.pos-wrapper select {
+  color: var(--pos-txt-primary) !important;
+}
+

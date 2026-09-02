@@ -5851,54 +5851,106 @@ export default function AndroidPosRegister({
         )}
 
         {/* TAB 3: RIWAYAT TRANSAKSI */}
+        {/* TAB 3: RIWAYAT TRANSAKSI */}
         {(activeNavTab === 'riwayat' || activeNavTab === 'riwayat_transaksi') && (
-          <div style={{ flex: 1, padding: '20px', overflowY: 'auto', width: '100%' }}>
+          <div style={{ flex: 1, padding: '20px', overflowY: 'auto', width: '100%', background: T.bgApp, color: T.txtPrimary }}>
             {/* Header + Filter Tabs */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h2 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>Riwayat Struk Transaksi Kasir</h2>
-                <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', margin: '3px 0 0 0' }}>
-                  Outlet: {currentOutlet.name} •{' '}
-                  <strong style={{ color: '#34d399' }}>{filteredRiwayatTransactions.length}</strong> Transaksi •{' '}
-                  <span style={{ color: riwayatFilterMode === 'today' ? '#34d399' : riwayatFilterMode === 'yesterday' ? '#38bdf8' : '#fbbf24' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <History size={22} color="#38bdf8" />
+                  <span>Riwayat Struk Transaksi Kasir</span>
+                </h2>
+                <p style={{ fontSize: '0.80rem', color: T.txtSecondary, margin: '4px 0 0 0', fontWeight: '600' }}>
+                  Outlet: <strong style={{ color: '#38bdf8' }}>{currentOutlet.name}</strong> •{' '}
+                  <strong style={{ color: '#10b981' }}>{filteredRiwayatTransactions.length}</strong> Transaksi •{' '}
+                  <span style={{ color: riwayatFilterMode === 'today' ? '#10b981' : riwayatFilterMode === 'yesterday' ? '#38bdf8' : '#f59e0b', fontWeight: '800' }}>
                     {riwayatFilterMode === 'today' ? 'Hari Ini' : riwayatFilterMode === 'yesterday' ? 'Kemarin' : `${riwayatCustomStart} s/d ${riwayatCustomEnd}`}
                   </span>
                 </p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                <button type="button" onClick={() => setRiwayatFilterMode('today')} style={{ padding: '9px 16px', borderRadius: '10px', fontWeight: '900', fontSize: '0.8rem', cursor: 'pointer', border: riwayatFilterMode === 'today' ? '2px solid #34d399' : '1px solid rgba(255,255,255,0.15)', background: riwayatFilterMode === 'today' ? '#34d399' : 'rgba(255,255,255,0.07)', color: riwayatFilterMode === 'today' ? '#0f172a' : 'rgba(255,255,255,0.6)' }}>Hari Ini</button>
-                <button type="button" onClick={() => setRiwayatFilterMode('yesterday')} style={{ padding: '9px 16px', borderRadius: '10px', fontWeight: '900', fontSize: '0.8rem', cursor: 'pointer', border: riwayatFilterMode === 'yesterday' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.15)', background: riwayatFilterMode === 'yesterday' ? '#38bdf8' : 'rgba(255,255,255,0.07)', color: riwayatFilterMode === 'yesterday' ? '#0f172a' : 'rgba(255,255,255,0.6)' }}>Kemarin</button>
-                <button type="button" onClick={() => setRiwayatFilterMode('custom')} style={{ padding: '9px 16px', borderRadius: '10px', fontWeight: '900', fontSize: '0.8rem', cursor: 'pointer', border: riwayatFilterMode === 'custom' ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.15)', background: riwayatFilterMode === 'custom' ? '#fbbf24' : 'rgba(255,255,255,0.07)', color: riwayatFilterMode === 'custom' ? '#0f172a' : 'rgba(255,255,255,0.6)' }}>Custom</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setRiwayatFilterMode('today')} 
+                  style={{ 
+                    padding: '9px 18px', 
+                    borderRadius: '10px', 
+                    fontWeight: '900', 
+                    fontSize: '0.82rem', 
+                    cursor: 'pointer', 
+                    border: riwayatFilterMode === 'today' ? '2px solid #10b981' : `1px solid ${T.borderCard}`, 
+                    background: riwayatFilterMode === 'today' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : (isCalmSage ? '#eaf2ec' : '#1e293b'), 
+                    color: riwayatFilterMode === 'today' ? '#ffffff' : T.txtPrimary,
+                    boxShadow: riwayatFilterMode === 'today' ? '0 4px 12px rgba(16,185,129,0.3)' : 'none'
+                  }}
+                >
+                  Hari Ini
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setRiwayatFilterMode('yesterday')} 
+                  style={{ 
+                    padding: '9px 18px', 
+                    borderRadius: '10px', 
+                    fontWeight: '900', 
+                    fontSize: '0.82rem', 
+                    cursor: 'pointer', 
+                    border: riwayatFilterMode === 'yesterday' ? '2px solid #38bdf8' : `1px solid ${T.borderCard}`, 
+                    background: riwayatFilterMode === 'yesterday' ? 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)' : (isCalmSage ? '#eaf2ec' : '#1e293b'), 
+                    color: riwayatFilterMode === 'yesterday' ? '#ffffff' : T.txtPrimary,
+                    boxShadow: riwayatFilterMode === 'yesterday' ? '0 4px 12px rgba(56,189,248,0.3)' : 'none'
+                  }}
+                >
+                  Kemarin
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setRiwayatFilterMode('custom')} 
+                  style={{ 
+                    padding: '9px 18px', 
+                    borderRadius: '10px', 
+                    fontWeight: '900', 
+                    fontSize: '0.82rem', 
+                    cursor: 'pointer', 
+                    border: riwayatFilterMode === 'custom' ? '2px solid #f59e0b' : `1px solid ${T.borderCard}`, 
+                    background: riwayatFilterMode === 'custom' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : (isCalmSage ? '#eaf2ec' : '#1e293b'), 
+                    color: riwayatFilterMode === 'custom' ? '#ffffff' : T.txtPrimary,
+                    boxShadow: riwayatFilterMode === 'custom' ? '0 4px 12px rgba(245,158,11,0.3)' : 'none'
+                  }}
+                >
+                  Custom
+                </button>
               </div>
             </div>
 
             {/* Custom Date Range Picker */}
             {riwayatFilterMode === 'custom' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '12px', padding: '10px 14px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#fbbf24' }}>Rentang Tanggal:</span>
-                <input type="date" value={riwayatCustomStart} onChange={e => setRiwayatCustomStart(e.target.value)} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.4)', background: 'var(--pos-bg-card)', color: 'var(--pos-txt-primary)', fontSize: '0.82rem' }} />
-                <span style={{ color: '#fbbf24', fontWeight: '700' }}>s/d</span>
-                <input type="date" value={riwayatCustomEnd} onChange={e => setRiwayatCustomEnd(e.target.value)} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.4)', background: 'var(--pos-bg-card)', color: 'var(--pos-txt-primary)', fontSize: '0.82rem' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', background: isCalmSage ? '#fffbeb' : 'rgba(251,191,36,0.1)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: '12px', padding: '12px 16px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.80rem', fontWeight: '800', color: '#d97706' }}>Rentang Tanggal:</span>
+                <input type="date" value={riwayatCustomStart} onChange={e => setRiwayatCustomStart(e.target.value)} style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.5)', background: T.bgInput, color: T.txtPrimary, fontSize: '0.82rem', fontWeight: '700' }} />
+                <span style={{ color: '#d97706', fontWeight: '800' }}>s/d</span>
+                <input type="date" value={riwayatCustomEnd} onChange={e => setRiwayatCustomEnd(e.target.value)} style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.5)', background: T.bgInput, color: T.txtPrimary, fontSize: '0.82rem', fontWeight: '700' }} />
               </div>
             )}
 
             {/* KETERANGAN SYNC MOBILE APK DENGAN SERVER & DATABASE */}
-            <div style={{ background: 'var(--pos-bg-app)', padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(56,189,248,0.25)', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#34d399', boxShadow: '0 0 10px #34d399' }} />
+            <div style={{ background: T.bgCard, padding: '14px 18px', borderRadius: '14px', border: `1px solid ${T.borderCard}`, marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', boxShadow: isCalmSage ? '0 2px 8px rgba(21,46,34,0.05)' : 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }} />
                 <div>
-                  <div style={{ fontSize: '0.82rem', fontWeight: '800', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>Sinkronisasi Riwayat Transaksi:</span>
-                    <span style={{ color: '#34d399', fontWeight: '900' }}>Live Server & Database Synced</span>
+                    <span style={{ color: '#10b981', fontWeight: '900' }}>Live Server & Database Synced</span>
                   </div>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.76rem', color: T.txtSecondary, marginTop: '2px', fontWeight: '600' }}>
                     Seluruh riwayat transaksi kasir terhubung dan tersimpan real-time di Database Server & Web Admin.
                   </div>
                 </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--pos-txt-secondary)', background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--pos-border)' }}>
+                <span style={{ fontSize: '0.76rem', fontWeight: '800', color: T.txtSecondary, background: isCalmSage ? '#eef5f0' : '#1e293b', padding: '5px 12px', borderRadius: '8px', border: `1px solid ${T.borderCard}` }}>
                   {lastSyncTime}
                 </span>
                 <button
@@ -5906,12 +5958,12 @@ export default function AndroidPosRegister({
                   onClick={handleTriggerSyncData}
                   disabled={isSyncingNow}
                   style={{
-                    padding: '6px 14px',
-                    background: isSyncingNow ? 'var(--pos-border-card)' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    padding: '8px 16px',
+                    background: isSyncingNow ? (isCalmSage ? '#c8ded1' : '#334155') : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                     border: 'none',
-                    color: 'var(--pos-txt-primary)',
+                    color: '#ffffff',
                     borderRadius: '10px',
-                    fontSize: '0.78rem',
+                    fontSize: '0.80rem',
                     fontWeight: '900',
                     cursor: isSyncingNow ? 'not-allowed' : 'pointer',
                     display: 'flex',
@@ -5927,47 +5979,83 @@ export default function AndroidPosRegister({
             </div>
 
             {filteredRiwayatTransactions.length === 0 ? (
-              <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', padding: '40px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
-                <History size={48} strokeWidth={1} style={{ marginBottom: '12px', color: '#818cf8' }} />
-                <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>Belum Ada Riwayat Transaksi</div>
-                <div style={{ fontSize: '0.78rem', marginTop: '4px' }}>
+              <div style={{ background: T.bgCard, borderRadius: '16px', padding: '48px 20px', textAlign: 'center', border: `1px solid ${T.borderCard}`, boxShadow: isCalmSage ? '0 2px 8px rgba(21,46,34,0.05)' : 'none' }}>
+                <History size={48} strokeWidth={1.5} style={{ marginBottom: '12px', color: '#38bdf8' }} />
+                <div style={{ fontSize: '1.05rem', fontWeight: '900', color: T.txtPrimary }}>Belum Ada Riwayat Transaksi</div>
+                <div style={{ fontSize: '0.82rem', marginTop: '6px', color: T.txtSecondary, fontWeight: '600' }}>
                   {riwayatFilterMode === 'today' ? 'Belum ada transaksi hari ini.' : riwayatFilterMode === 'yesterday' ? 'Tidak ada transaksi kemarin.' : 'Tidak ada transaksi di rentang tanggal ini.'}
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {filteredRiwayatTransactions.map(tx => (
-                  <div key={tx.id} style={{ background: 'var(--pos-bg-card)', padding: '14px 18px', borderRadius: '14px', border: '1px solid var(--pos-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div 
+                    key={tx.id} 
+                    style={{ 
+                      background: T.bgCard, 
+                      padding: '16px 20px', 
+                      borderRadius: '16px', 
+                      border: `1px solid ${T.borderCard}`, 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      boxShadow: isCalmSage ? '0 2px 8px rgba(21,46,34,0.05)' : '0 4px 14px rgba(0,0,0,0.25)',
+                      flexWrap: 'wrap',
+                      gap: '12px'
+                    }}
+                  >
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: '900', color: '#38bdf8' }}>#{tx.id}</span>
+                        <span style={{ fontSize: '0.92rem', fontWeight: '900', color: '#0284c7' }}>#{tx.id}</span>
 
                         {/* BADGE STATUS TRANSAKSI */}
                         {(tx.is_offline_pending || tx.status === 'offline_pending' || tx.status === 'ditunda') ? (
-                          <span style={{ fontSize: '0.68rem', padding: '2px 9px', borderRadius: '6px', background: 'rgba(245,158,11,0.2)', color: '#fbbf24', border: '1px solid #f59e0b', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '0.70rem', padding: '3px 10px', borderRadius: '6px', background: 'rgba(245,158,11,0.15)', color: '#d97706', border: '1px solid #f59e0b', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                             Pending Sync (Offline)
                           </span>
                         ) : (
-                          <span style={{ fontSize: '0.68rem', padding: '2px 9px', borderRadius: '6px', background: 'rgba(16,185,129,0.2)', color: '#34d399', border: '1px solid #10b981', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '0.70rem', padding: '3px 10px', borderRadius: '6px', background: 'rgba(16,185,129,0.15)', color: '#059669', border: '1px solid #10b981', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                             Approved / Tersinkron
                           </span>
                         )}
 
-                        <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(16,185,129,0.2)', color: '#34d399', fontWeight: '800' }}>{tx.payment_method || 'Cash'}</span>
-                        <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(99,102,241,0.2)', color: '#818cf8', fontWeight: '800' }}>{tx.order_type || 'Dine In'}</span>
-                        {tx.table_number && <span style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: '700' }}>{tx.table_number}</span>}
+                        <span style={{ fontSize: '0.72rem', padding: '3px 9px', borderRadius: '6px', background: isCalmSage ? '#eef5f0' : '#1e293b', color: T.txtPrimary, border: `1px solid ${T.borderCard}`, fontWeight: '800' }}>
+                          {tx.payment_method || 'Cash'}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', padding: '3px 9px', borderRadius: '6px', background: 'rgba(99,102,241,0.15)', color: '#6366f1', border: '1px solid rgba(99,102,241,0.3)', fontWeight: '800' }}>
+                          {tx.order_type || 'Dine In'}
+                        </span>
+                        {tx.table_number && (
+                          <span style={{ fontSize: '0.74rem', color: '#d97706', fontWeight: '800', background: 'rgba(245,158,11,0.12)', padding: '2px 8px', borderRadius: '6px' }}>
+                            {tx.table_number}
+                          </span>
+                        )}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>
-                        {tx.date} {tx.time || ''} • Pelanggan: <strong>{tx.customer_name || 'Pelanggan Umum'}</strong>
+                      <div style={{ fontSize: '0.78rem', color: T.txtSecondary, marginTop: '6px', fontWeight: '600' }}>
+                        {tx.date} {tx.time || ''} • Pelanggan: <strong style={{ color: T.txtPrimary }}>{tx.customer_name || 'Pelanggan Umum'}</strong> • Kasir: <strong style={{ color: T.txtPrimary }}>{tx.cashier || 'Kasir'}</strong>
                       </div>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '1rem', fontWeight: '900', color: '#34d399' }}>{formatRupiah(tx.amount)}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--pos-txt-secondary)' }}>{(tx.items || []).length} Item Menu</div>
+                        <div style={{ fontSize: '1.05rem', fontWeight: '900', color: '#10b981' }}>{formatRupiah(tx.amount)}</div>
+                        <div style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700' }}>{(tx.items || []).length} Item Menu</div>
                       </div>
-                      <button onClick={() => setSelectedTxDetail(tx)} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>
+                      <button 
+                        type="button"
+                        onClick={() => setSelectedTxDetail(tx)} 
+                        style={{ 
+                          padding: '8px 16px', 
+                          borderRadius: '10px', 
+                          border: `1px solid ${T.borderCard}`, 
+                          background: isCalmSage ? '#2d7a5b' : '#2563eb', 
+                          color: '#ffffff', 
+                          fontWeight: '800', 
+                          fontSize: '0.78rem',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                        }}
+                      >
                         Detail Struk
                       </button>
                     </div>
@@ -10355,37 +10443,75 @@ export default function AndroidPosRegister({
 
       {/* 6. MODAL DETAIL STRUK TRANSACTION HISTORY */}
       {selectedTxDetail && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120 }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px', background: 'var(--pos-bg-card)' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '12px' }}>Detail Struk Nota Transaksi</h3>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120, padding: '16px' }}>
+          <div style={{ width: '100%', maxWidth: '440px', padding: '24px', background: T.bgModal || T.bgCard, borderRadius: '20px', border: `1px solid ${T.borderCard}`, boxShadow: '0 20px 60px rgba(0,0,0,0.4)', color: T.txtPrimary }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileText size={20} color="#38bdf8" />
+              <span>Detail Struk Nota Transaksi</span>
+            </h3>
             
-            <div style={{ background: 'var(--pos-bg-app)', padding: '14px', borderRadius: '12px', border: '1px dashed #334155', fontSize: '0.78rem', marginBottom: '16px' }}>
-              <div style={{ fontWeight: '800', color: '#38bdf8' }}>{selectedTxDetail.branch_name}</div>
-              <div style={{ color: 'var(--pos-txt-secondary)' }}>No. Struk: {selectedTxDetail.id}</div>
-              <div style={{ color: 'var(--pos-txt-secondary)' }}>Waktu: {selectedTxDetail.date} {selectedTxDetail.time || ''}</div>
-              <div style={{ color: 'var(--pos-txt-secondary)' }}>Tipe: {selectedTxDetail.order_type} ({selectedTxDetail.table_number || 'N/A'})</div>
-              <div style={{ color: 'var(--pos-txt-secondary)' }}>Metode Bayar: {selectedTxDetail.payment_method}</div>
-              <hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '8px 0' }} />
+            <div style={{ background: isCalmSage ? '#f3f7f4' : '#0b0f19', padding: '16px', borderRadius: '14px', border: `1px dashed ${T.borderCard}`, fontSize: '0.80rem', marginBottom: '16px' }}>
+              <div style={{ fontWeight: '900', color: '#0284c7', fontSize: '0.90rem' }}>{selectedTxDetail.branch_name || currentOutlet.name}</div>
+              <div style={{ color: T.txtSecondary, marginTop: '2px', fontWeight: '600' }}>No. Struk: <strong style={{ color: T.txtPrimary }}>{selectedTxDetail.id}</strong></div>
+              <div style={{ color: T.txtSecondary, marginTop: '2px', fontWeight: '600' }}>Waktu: <strong style={{ color: T.txtPrimary }}>{selectedTxDetail.date} {selectedTxDetail.time || ''}</strong></div>
+              <div style={{ color: T.txtSecondary, marginTop: '2px', fontWeight: '600' }}>Tipe: <strong style={{ color: T.txtPrimary }}>{selectedTxDetail.order_type} ({selectedTxDetail.table_number || 'N/A'})</strong></div>
+              <div style={{ color: T.txtSecondary, marginTop: '2px', fontWeight: '600' }}>Metode Bayar: <strong style={{ color: '#10b981' }}>{selectedTxDetail.payment_method}</strong></div>
+              <hr style={{ borderColor: T.borderCard, margin: '10px 0' }} />
               {(selectedTxDetail.items || []).map((it, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--pos-txt-primary)', margin: '4px 0' }}>
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', color: T.txtPrimary, margin: '6px 0', fontWeight: '600' }}>
                   <span>{it.qty}x {it.name}</span>
-                  <span>{formatRupiah(it.amount || it.price_unit * it.qty)}</span>
+                  <span style={{ fontWeight: '800' }}>{formatRupiah(it.amount || it.price_unit * it.qty)}</span>
                 </div>
               ))}
-              <hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '8px 0' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900', color: '#34d399', fontSize: '0.9rem' }}>
-                <span>TOTAL</span>
+              <hr style={{ borderColor: T.borderCard, margin: '10px 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900', color: '#10b981', fontSize: '1rem' }}>
+                <span>TOTAL PEMBAYARAN</span>
                 <span>{formatRupiah(selectedTxDetail.amount)}</span>
               </div>
             </div>
 
             {/* PRINTER STATUS BANNER — modal cetak ulang riwayat transaksi */}
             {renderPrinterStatusBanner()}
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => setSelectedTxDetail(null)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Tutup</button>
-              <button onClick={() => handlePrintSingleReceipt(selectedTxDetail)} className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+              <button 
+                type="button"
+                onClick={() => setSelectedTxDetail(null)} 
+                style={{ 
+                  flex: 1, 
+                  padding: '11px', 
+                  borderRadius: '10px', 
+                  border: `1px solid ${T.borderCard}`, 
+                  background: isCalmSage ? '#eaf2ec' : '#1e293b', 
+                  color: T.txtPrimary, 
+                  fontWeight: '800', 
+                  fontSize: '0.84rem', 
+                  cursor: 'pointer' 
+                }}
+              >
+                Tutup
+              </button>
+              <button 
+                type="button"
+                onClick={() => handlePrintSingleReceipt(selectedTxDetail)} 
+                style={{ 
+                  flex: 1.4, 
+                  padding: '11px', 
+                  borderRadius: '10px', 
+                  border: 'none', 
+                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', 
+                  color: '#ffffff', 
+                  fontWeight: '900', 
+                  fontSize: '0.84rem', 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  boxShadow: '0 4px 14px rgba(37,99,235,0.35)'
+                }}
+              >
                 <Printer size={16} />
-                <span>Cetak Ulang</span>
+                <span>Cetak Ulang Struk</span>
               </button>
             </div>
           </div>
