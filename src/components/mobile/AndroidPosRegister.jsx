@@ -676,6 +676,7 @@ export default function AndroidPosRegister({
   const [onlineOrderId, setOnlineOrderId] = useState('');
 
   // Diskon Modal & Mode State (% atau Nominal)
+  const [showCartCostBreakdown, setShowCartCostBreakdown] = useState(false); // Collapsible Subtotal/Diskon/Service/Tax/Adj
   const [showDiscountEditModal, setShowDiscountEditModal] = useState(false);
   const [discountMode, setDiscountMode] = useState('nominal'); // 'nominal' | 'percent'
   const [discountInputVal, setDiscountInputVal] = useState(''); // Raw input value
@@ -5410,102 +5411,144 @@ export default function AndroidPosRegister({
                   </div>
                 )}
 
-                {/* Subtotal & Breakdown Summary */}
+                {/* Subtotal & Breakdown Summary (Collapsible Accordion) */}
                 <div style={{ padding: '12px 16px', background: T.bgCard, borderTop: `1px solid ${T.border}` }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '10px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: T.txtSecondary }}>
-                      <span>Subtotal</span>
-                      <span style={{ fontWeight: '800' }}>{formatRupiah(cartSubtotal)}</span>
-                    </div>
-
-                    {/* 1. DISKON (KLIK TULISAN UNTUK UBAH PERSENTASE / NOMINAL) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
+                    
+                    {/* Collapsible Accordion Header Toggle */}
                     <div
-                      onClick={() => {
-                        setDiscountInputVal(discountMode === 'percent' ? (discountInputVal || '') : (discountValue || ''));
-                        setShowDiscountEditModal(true);
-                      }}
+                      onClick={() => setShowCartCostBreakdown(prev => !prev)}
                       style={{
                         display: 'flex',
-                        justify: 'space-between',
+                        justifyContent: 'space-between',
                         alignItems: 'center',
-                        fontSize: '0.78rem',
-                        color: discountAmount > 0 ? '#fb7185' : 'var(--pos-txt-secondary)',
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        background: isCalmSage ? '#eaf2ec' : '#1e293b',
+                        border: `1px solid ${T.borderCard}`,
                         cursor: 'pointer',
-                        padding: '4px 6px',
-                        borderRadius: '6px',
-                        background: discountAmount > 0 ? 'rgba(244,63,94,0.1)' : 'transparent',
-                        border: '1px dashed',
-                        borderColor: discountAmount > 0 ? 'rgba(244,63,94,0.3)' : 'transparent',
+                        fontSize: '0.78rem',
+                        fontWeight: '800',
+                        color: T.txtPrimary,
                         transition: 'all 0.15s ease'
                       }}
+                      title="Klik untuk melihat / menyembunyikan rincian subtotal, diskon, dan biaya"
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontWeight: '800' }}>Diskon</span>
-                        <Tag size={12} color="#fb7185" />
-                        {discountMode === 'percent' && discountInputVal && (
-                          <span style={{ fontSize: '0.68rem', background: '#fb7185', color: '#fff', padding: '1px 5px', borderRadius: '4px', fontWeight: '800' }}>
-                            {discountInputVal}%
+                        <Receipt size={14} color="#0284c7" />
+                        <span>Rincian Biaya & Diskon</span>
+                        {(discountAmount > 0 || numAdjustment !== 0) && (
+                          <span style={{ fontSize: '0.66rem', background: '#fb7185', color: '#ffffff', padding: '1px 6px', borderRadius: '4px', fontWeight: '800' }}>
+                            {discountAmount > 0 ? `Diskon -${formatRupiah(discountAmount)}` : ''} {numAdjustment !== 0 ? `Adj ${formatRupiah(numAdjustment)}` : ''}
                           </span>
                         )}
                       </div>
-                      <span style={{ fontWeight: '900' }}>
-                        {discountAmount > 0 ? `(- ${formatRupiah(discountAmount)})` : '(- Rp 0)'}
-                      </span>
-                    </div>
-
-                    {/* 2. SERVICE CHARGE (STATIC / READ ONLY) */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: T.txtMuted, padding: '2px 6px' }}>
-                      <span>Service Charge</span>
-                      <span style={{ fontWeight: '700' }}>Rp 0</span>
-                    </div>
-
-                    {/* 3. PAJAK PB1 (STATIC / READ ONLY) */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: T.txtMuted, padding: '2px 6px' }}>
-                      <span>Pajak</span>
-                      <span style={{ fontWeight: '700' }}>Rp 0</span>
-                    </div>
-
-                    {/* 4. ADJUSTMENT (KLIK TULISAN UNTUK UBAH NOMINAL & KETERANGAN WAJIB) */}
-                    <div
-                      onClick={() => {
-                        setAdjustmentInputVal(adjustmentValue || '');
-                        setAdjustmentReasonInput(adjustmentReason || '');
-                        setAdjustmentErrorMsg('');
-                        setShowAdjustmentEditModal(true);
-                      }}
-                      style={{
-                        display: 'flex',
-                        justify: 'space-between',
-                        alignItems: 'center',
-                        fontSize: '0.78rem',
-                        color: numAdjustment !== 0 ? '#a78bfa' : 'var(--pos-txt-secondary)',
-                        cursor: 'pointer',
-                        padding: '4px 6px',
-                        borderRadius: '6px',
-                        background: numAdjustment !== 0 ? 'rgba(167,139,250,0.1)' : 'transparent',
-                        border: '1px dashed',
-                        borderColor: numAdjustment !== 0 ? 'rgba(167,139,250,0.3)' : 'transparent',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontWeight: '800' }}>Adjustment</span>
-                        <Percent size={12} color="#a78bfa" />
-                        {adjustmentReason && (
-                          <span style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)', fontStyle: 'italic', maxWidth: '110px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            ({adjustmentReason})
-                          </span>
-                        )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#0284c7', fontSize: '0.74rem', fontWeight: '800' }}>
+                        <span>{showCartCostBreakdown ? 'Tutup Rincian' : 'Lihat Rincian'}</span>
+                        {showCartCostBreakdown ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                       </div>
-                      <span style={{ fontWeight: '900' }}>
-                        {numAdjustment !== 0 ? `${numAdjustment > 0 ? '+' : ''}${formatRupiah(numAdjustment)}` : 'Rp 0'}
-                      </span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '6px', marginTop: '2px', borderTop: `1px solid ${T.border}` }}>
-                      <span style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary }}>
+
+                    {/* EXPANDED BREAKDOWN ITEMS (HANYA MUNCUL JIKA DIKLIK) */}
+                    {showCartCostBreakdown && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 4px 4px 4px', background: isCalmSage ? '#f8faf9' : 'rgba(0,0,0,0.2)', borderRadius: '8px', marginTop: '2px', border: `1px dashed ${T.borderCard}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: T.txtSecondary, padding: '2px 6px' }}>
+                          <span>Subtotal</span>
+                          <span style={{ fontWeight: '800', color: T.txtPrimary }}>{formatRupiah(cartSubtotal)}</span>
+                        </div>
+
+                        {/* 1. DISKON (KLIK TULISAN UNTUK UBAH PERSENTASE / NOMINAL) */}
+                        <div
+                          onClick={() => {
+                            setDiscountInputVal(discountMode === 'percent' ? (discountInputVal || '') : (discountValue || ''));
+                            setShowDiscountEditModal(true);
+                          }}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            fontSize: '0.78rem',
+                            color: discountAmount > 0 ? '#ef4444' : T.txtSecondary,
+                            cursor: 'pointer',
+                            padding: '4px 6px',
+                            borderRadius: '6px',
+                            background: discountAmount > 0 ? 'rgba(239,68,68,0.1)' : 'transparent',
+                            border: '1px dashed',
+                            borderColor: discountAmount > 0 ? '#ef4444' : 'transparent',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontWeight: '800' }}>Diskon</span>
+                            <Tag size={12} color="#ef4444" />
+                            {discountMode === 'percent' && discountInputVal && (
+                              <span style={{ fontSize: '0.68rem', background: '#ef4444', color: '#ffffff', padding: '1px 5px', borderRadius: '4px', fontWeight: '800' }}>
+                                {discountInputVal}%
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ fontWeight: '900' }}>
+                            {discountAmount > 0 ? `(- ${formatRupiah(discountAmount)})` : '(- Rp 0)'}
+                          </span>
+                        </div>
+
+                        {/* 2. SERVICE CHARGE (STATIC / READ ONLY) */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: T.txtMuted, padding: '2px 6px' }}>
+                          <span>Service Charge</span>
+                          <span style={{ fontWeight: '700' }}>Rp 0</span>
+                        </div>
+
+                        {/* 3. PAJAK PB1 (STATIC / READ ONLY) */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: T.txtMuted, padding: '2px 6px' }}>
+                          <span>Pajak</span>
+                          <span style={{ fontWeight: '700' }}>Rp 0</span>
+                        </div>
+
+                        {/* 4. ADJUSTMENT (KLIK TULISAN UNTUK UBAH NOMINAL & KETERANGAN WAJIB) */}
+                        <div
+                          onClick={() => {
+                            setAdjustmentInputVal(adjustmentValue || '');
+                            setAdjustmentReasonInput(adjustmentReason || '');
+                            setAdjustmentErrorMsg('');
+                            setShowAdjustmentEditModal(true);
+                          }}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            fontSize: '0.78rem',
+                            color: numAdjustment !== 0 ? '#8b5cf6' : T.txtSecondary,
+                            cursor: 'pointer',
+                            padding: '4px 6px',
+                            borderRadius: '6px',
+                            background: numAdjustment !== 0 ? 'rgba(139,92,246,0.1)' : 'transparent',
+                            border: '1px dashed',
+                            borderColor: numAdjustment !== 0 ? '#8b5cf6' : 'transparent',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontWeight: '800' }}>Adjustment</span>
+                            <Percent size={12} color="#8b5cf6" />
+                            {adjustmentReason && (
+                              <span style={{ fontSize: '0.68rem', color: T.txtSecondary, fontStyle: 'italic', maxWidth: '110px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                ({adjustmentReason})
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ fontWeight: '900' }}>
+                            {numAdjustment !== 0 ? `${numAdjustment > 0 ? '+' : ''}${formatRupiah(numAdjustment)}` : 'Rp 0'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ALWAYS VISIBLE TOTAL ROW */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', marginTop: '2px', borderTop: `1px solid ${T.border}` }}>
+                      <span style={{ fontSize: '0.86rem', fontWeight: '800', color: T.txtPrimary }}>
                         Total ({cart.reduce((s, i) => s + i.qty, 0)} items)
                       </span>
-                      <span style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary }}>
+                      <span style={{ fontSize: '1.2rem', fontWeight: '900', color: '#10b981' }}>
                         {formatRupiah(cartTotal)}
                       </span>
                     </div>
@@ -5520,10 +5563,10 @@ export default function AndroidPosRegister({
                       style={{
                         flex: '0 0 76px',
                         height: '42px',
-                        background: (cart.length > 0 || activeRecallOrderId) ? 'rgba(239,68,68,0.15)' : 'transparent',
-                        border: `1px solid ${(cart.length > 0 || activeRecallOrderId) ? '#ef4444' : T.border}`,
+                        background: (cart.length > 0 || activeRecallOrderId) ? 'rgba(239,68,68,0.12)' : (isCalmSage ? '#eef5f0' : '#1e293b'),
+                        border: `1px solid ${(cart.length > 0 || activeRecallOrderId) ? '#ef4444' : T.borderCard}`,
                         color: (cart.length > 0 || activeRecallOrderId) ? '#ef4444' : T.txtMuted,
-                        borderRadius: '8px',
+                        borderRadius: '10px',
                         fontWeight: '800',
                         fontSize: '0.80rem',
                         cursor: (cart.length > 0 || activeRecallOrderId) ? 'pointer' : 'not-allowed',
@@ -5544,10 +5587,10 @@ export default function AndroidPosRegister({
                       style={{
                         flex: 1,
                         height: '42px',
-                        background: (cart.length > 0 || (selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) || activeRecallOrderId) ? 'rgba(56,189,248,0.12)' : 'transparent',
-                        border: `1px solid ${(cart.length > 0 || (selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) || activeRecallOrderId) ? '#38bdf8' : T.border}`,
-                        color: (cart.length > 0 || (selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) || activeRecallOrderId) ? '#38bdf8' : T.txtMuted,
-                        borderRadius: '8px',
+                        background: (cart.length > 0 || (selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) || activeRecallOrderId) ? 'rgba(56,189,248,0.15)' : (isCalmSage ? '#eef5f0' : '#1e293b'),
+                        border: `1px solid ${(cart.length > 0 || (selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) || activeRecallOrderId) ? '#0284c7' : T.borderCard}`,
+                        color: (cart.length > 0 || (selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) || activeRecallOrderId) ? '#0284c7' : T.txtMuted,
+                        borderRadius: '10px',
                         fontWeight: '800',
                         fontSize: '0.82rem',
                         cursor: (cart.length > 0 || (selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) || activeRecallOrderId) ? 'pointer' : 'not-allowed',
@@ -5568,10 +5611,10 @@ export default function AndroidPosRegister({
                       style={{
                         flex: 1,
                         height: '42px',
-                        background: '#2563eb',
-                        border: 'none',
-                        color: 'var(--pos-txt-primary)',
-                        borderRadius: '8px',
+                        background: cart.length > 0 ? (isCalmSage ? '#2d7a5b' : '#2563eb') : (isCalmSage ? '#eef5f0' : '#1e293b'),
+                        border: `1px solid ${cart.length > 0 ? 'transparent' : T.borderCard}`,
+                        color: cart.length > 0 ? '#ffffff' : T.txtMuted,
+                        borderRadius: '10px',
                         fontWeight: '800',
                         fontSize: '0.82rem',
                         cursor: cart.length > 0 ? 'pointer' : 'not-allowed'
@@ -5590,10 +5633,10 @@ export default function AndroidPosRegister({
                       style={{
                         width: '100%',
                         height: '46px',
-                        background: cart.length > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'var(--pos-border-card)',
-                        border: 'none',
-                        borderRadius: '8px',
-                        color: '#ffffff',
+                        background: cart.length > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : (isCalmSage ? '#e2e8f0' : '#1e293b'),
+                        border: `1px solid ${cart.length > 0 ? '#059669' : (isCalmSage ? '#cbd5e1' : '#334155')}`,
+                        borderRadius: '10px',
+                        color: cart.length > 0 ? '#ffffff' : (isCalmSage ? '#94a3b8' : '#64748b'),
                         fontWeight: '900',
                         fontSize: '0.92rem',
                         cursor: cart.length > 0 ? 'pointer' : 'not-allowed',
@@ -5610,6 +5653,7 @@ export default function AndroidPosRegister({
                     </button>
                   ) : (
                     <button
+                      type="button"
                       disabled={cart.length === 0}
                       onClick={() => {
                         if (cart.length > 0) {
@@ -5621,17 +5665,22 @@ export default function AndroidPosRegister({
                       style={{
                         width: '100%',
                         height: '46px',
-                        background: cart.length > 0 ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'var(--pos-border-card)',
-                        border: 'none',
-                        borderRadius: '8px',
-                        color: 'var(--pos-txt-primary)',
+                        background: cart.length > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : (isCalmSage ? '#e2e8f0' : '#1e293b'),
+                        border: `1px solid ${cart.length > 0 ? '#059669' : (isCalmSage ? '#cbd5e1' : '#334155')}`,
+                        borderRadius: '10px',
+                        color: cart.length > 0 ? '#ffffff' : (isCalmSage ? '#94a3b8' : '#64748b'),
                         fontWeight: '900',
                         fontSize: '0.95rem',
                         cursor: cart.length > 0 ? 'pointer' : 'not-allowed',
-                        boxShadow: cart.length > 0 ? '0 4px 14px rgba(37,99,235,0.4)' : 'none'
+                        boxShadow: cart.length > 0 ? '0 4px 14px rgba(16,185,129,0.35)' : 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px'
                       }}
                     >
-                      Bayar
+                      <CreditCard size={18} />
+                      <span>Bayar {cartTotal > 0 ? `(${formatRupiah(cartTotal)})` : ''}</span>
                     </button>
                   )}
                 </div>
@@ -12700,36 +12749,42 @@ export default function AndroidPosRegister({
           {/* HEADER TOP BAR */}
           <div style={{
             height: '56px',
-            background: '#0f294a',
-            borderBottom: '1px solid var(--pos-border)',
+            background: isCalmSage ? '#152e22' : '#0f294a',
+            borderBottom: '1px solid rgba(255,255,255,0.15)',
             padding: '0 20px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            color: 'var(--pos-txt-primary)',
+            color: '#ffffff',
             flexShrink: 0
           }}>
             <button
+              type="button"
               onClick={() => setShowPaymentScreenModal(false)}
               style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--pos-txt-primary)',
+                background: 'rgba(255,255,255,0.18)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                color: '#ffffff',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '4px'
+                gap: '8px',
+                padding: '7px 14px',
+                borderRadius: '10px',
+                fontWeight: '900',
+                fontSize: '0.85rem',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
               }}
             >
-              <ArrowLeft size={22} />
+              <ArrowLeft size={18} color="#ffffff" />
+              <span>Kembali</span>
             </button>
             
-            <div style={{ fontSize: '1.15rem', fontWeight: '800', letterSpacing: '0.3px' }}>
-              Pembayaran
+            <div style={{ fontSize: '1.15rem', fontWeight: '900', letterSpacing: '0.3px', color: '#ffffff' }}>
+              Pembayaran Kasir
             </div>
             
-            <div style={{ width: '28px' }}></div>
+            <div style={{ width: '80px' }}></div>
           </div>
 
           {/* BODY CONTENT (2-COLUMN CONTAINER) */}
@@ -13100,8 +13155,8 @@ export default function AndroidPosRegister({
                       </div>
                       <div style={{ width: '1px', height: '28px', background: '#e2e8f0' }}></div>
                       <div style={{ textAlign: 'center', flex: 1 }}>
-                        <div style={{ fontSize: '0.75rem', color: '#475569', fontWeight: '700', marginBottom: '2px' }}>Kembalian</div>
-                        <div style={{ fontSize: '1rem', fontWeight: '900', color: kembalian > 0 ? '#10b981' : '#0f172a' }}>
+                        <div style={{ fontSize: '0.76rem', color: '#1e293b', fontWeight: '800', marginBottom: '2px' }}>Kembalian</div>
+                        <div style={{ fontSize: '1.15rem', fontWeight: '900', color: kembalian > 0 ? '#059669' : '#0f172a' }}>
                           {formatRupiah(kembalian)}
                         </div>
                       </div>
@@ -13111,17 +13166,18 @@ export default function AndroidPosRegister({
                     {selectedPaymentMethod === 'Cash' && kembalian > 0 && (
                       <div style={{
                         marginTop: '10px',
-                        background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
-                        border: '2px solid #10b981',
-                        borderRadius: '12px',
-                        padding: '12px 16px',
+                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        border: '2px solid #047857',
+                        borderRadius: '14px',
+                        padding: '14px 18px',
                         textAlign: 'center',
-                        boxShadow: '0 4px 12px rgba(16,185,129,0.2)'
+                        boxShadow: '0 6px 18px rgba(16,185,129,0.35)',
+                        color: '#ffffff'
                       }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: '900', color: '#047857', letterSpacing: '0.5px' }}>
+                        <div style={{ fontSize: '0.80rem', fontWeight: '900', color: '#ffffff', letterSpacing: '0.5px' }}>
                           UANG KEMBALIAN PELANGGAN:
                         </div>
-                        <div style={{ fontSize: '1.75rem', fontWeight: '900', color: '#059669', marginTop: '2px' }}>
+                        <div style={{ fontSize: '2rem', fontWeight: '900', color: '#ffffff', marginTop: '2px' }}>
                           {formatRupiah(kembalian)}
                         </div>
                       </div>
