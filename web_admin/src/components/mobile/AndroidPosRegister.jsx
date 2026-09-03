@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { initialMasterData } from '../../data/initialMasterData';
 import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, buildShiftClosingReceiptText, testPrint as btTestPrint, _browserPrintFallback, checkPrinterLiveStatus, listenBluetoothStatusChange } from '../../utils/bluetoothPrinter';
 import { idbSaveOfflineTx, idbGetAllOfflineTx, idbDeleteOfflineTx } from '../../utils/idbStorage';
