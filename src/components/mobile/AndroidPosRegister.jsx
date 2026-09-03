@@ -1069,12 +1069,48 @@ export default function AndroidPosRegister({
     if (isSavingRef.current) return;
     try {
       const queueRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
-      const queue = queueRaw ? JSON.parse(queueRaw) : [];
+      let queue = queueRaw ? JSON.parse(queueRaw) : [];
       if (!queue || queue.length === 0) {
         setOfflineQueueCount(0);
         return;
       }
-      setOfflineQueueCount(queue.length);
+
+      // Bersihkan transaksi offline yang ternyata sudah ada di masterData server
+      const allKnown = [
+        ...(masterData?.salesTransactions || []),
+        ...(masterData?.transactions || [])
+      ];
+      const knownIds = new Set(allKnown.map(t => String(t.id || t.receipt_no || t.receiptNo || '')));
+
+      // Hapus yang sudah tercatat di database dari antrean lokal
+      const unconfirmedQueue = queue.filter(tx => {
+        if (!tx) return false;
+        const txKey = String(tx.id || tx.receipt_no || tx.receiptNo || '');
+        if (txKey && knownIds.has(txKey)) return false;
+
+        // Cek juga signature: outlet_id + tanggal + customer + nominal persis
+        const txDate = tx.date || '';
+        const txCust = String(tx.customer_name || tx.customer || '').trim().toLowerCase();
+        const txAmt = Number(tx.amount || tx.total || 0);
+        if (txCust && txCust !== 'pelanggan umum' && txAmt > 0 && txDate) {
+          const matchExisting = allKnown.some(k => {
+            const kDate = k.date || '';
+            const kCust = String(k.customer_name || k.customer || '').trim().toLowerCase();
+            const kAmt = Number(k.amount || k.total || 0);
+            return kDate === txDate && kCust === txCust && kAmt === txAmt;
+          });
+          if (matchExisting) return false; // Sudah ada di server -> purge!
+        }
+        return true;
+      });
+
+      if (unconfirmedQueue.length !== queue.length) {
+        queue = unconfirmedQueue;
+        localStorage.setItem('MRIS_POS_OFFLINE_TX_QUEUE', JSON.stringify(queue));
+        setOfflineQueueCount(queue.length);
+      }
+
+      if (queue.length === 0) return;
 
       // Kirim item satu per satu secara berurutan (Sequential Atomic Flush)
       for (const tx of queue) {
@@ -1085,24 +1121,34 @@ export default function AndroidPosRegister({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...tx, status: 'approved', is_offline_pending: false })
           });
-          const resData = await res.json();
-          if (resData && (resData.success || resData.status === 'success')) {
+          const resData = await res.json().catch(() => ({}));
+          const isSuccess = res.ok && (resData.success || resData.status === 'success');
+          const isDuplicate = resData?.error && (resData.error.includes('Duplicate') || resData.error.includes('sudah'));
+
+          if (isSuccess || isDuplicate || res.status === 200) {
+            const curQRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+            const curQ = curQRaw ? JSON.parse(curQRaw) : [];
+            const remaining = curQ.filter(item => String(item.id || item.receipt_no || '') !== String(tx.id || tx.receipt_no || ''));
+            localStorage.setItem('MRIS_POS_OFFLINE_TX_QUEUE', JSON.stringify(remaining));
+            setOfflineQueueCount(remaining.length);
+          } else if (res.status === 400) {
+            // Bad request / invalid / expired data: buang dari antrean agar tidak menghalangi antrean lain
             const curQRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
             const curQ = curQRaw ? JSON.parse(curQRaw) : [];
             const remaining = curQ.filter(item => String(item.id || item.receipt_no || '') !== String(tx.id || tx.receipt_no || ''));
             localStorage.setItem('MRIS_POS_OFFLINE_TX_QUEUE', JSON.stringify(remaining));
             setOfflineQueueCount(remaining.length);
           } else {
-            // Jika response server bukan sukses, hentikan siklus flush agar tidak loop
+            // Masalah koneksi server (500/offline), hentikan siklus flush sementara
             break;
           }
         } catch (fetchErr) {
-          // Jika koneksi kembali offline di tengah jalan, hentikan loop dan simpan sisa antrean
+          // Jika koneksi terputus di tengah jalan, simpan sisa antrean
           break;
         }
       }
     } catch (err) {}
-  }, []);
+  }, [masterData]);
 
   // 2. Realtime Network & Offline Queue Auto-Flusher Effect
   React.useEffect(() => {
@@ -2245,13 +2291,42 @@ export default function AndroidPosRegister({
     } catch (e) {}
 
     const seenKeys = new Set();
-    const combined = [];
+    const serverSignatures = new Set();
 
-    // Prioritaskan offline queue lokal + outletTransactions
-    [...(Array.isArray(offlineTxs) ? offlineTxs : []), ...outletTransactions].forEach(tx => {
+    // 1. Catat semua transaksi server yang sudah terkonfirmasi
+    (outletTransactions || []).forEach(tx => {
+      if (!tx) return;
+      const key = String(tx.id || tx.receipt_no || tx.receiptNo || tx.tx_id || '');
+      if (key) seenKeys.add(key);
+
+      const cust = String(tx.customer_name || tx.customer || '').trim().toLowerCase();
+      const amt = Number(tx.amount || tx.total || 0);
+      const d = sharedGetTxDateStr(tx);
+      if (cust && cust !== 'pelanggan umum' && amt > 0) {
+        serverSignatures.add(`${d}_${cust}_${amt}`);
+      }
+    });
+
+    const combined = [];
+    // Prioritaskan transaksi resmi dari server/database
+    (outletTransactions || []).forEach(tx => {
+      if (tx) combined.push(tx);
+    });
+
+    // 2. Tambahkan offline queue HANYA jika belum ada di database (bukan ghost/duplicate)
+    (Array.isArray(offlineTxs) ? offlineTxs : []).forEach(tx => {
       if (!tx) return;
       const key = String(tx.id || tx.receipt_no || tx.receiptNo || tx.tx_id || '');
       if (key && seenKeys.has(key)) return;
+
+      const cust = String(tx.customer_name || tx.customer || '').trim().toLowerCase();
+      const amt = Number(tx.amount || tx.total || 0);
+      const d = sharedGetTxDateStr(tx);
+      if (cust && cust !== 'pelanggan umum' && amt > 0 && serverSignatures.has(`${d}_${cust}_${amt}`)) {
+        // Transaksi ini sudah ada di server (duplikasi akibat double click) -> jangan tampilkan 2x
+        return;
+      }
+
       if (key) seenKeys.add(key);
       combined.push(tx);
     });
@@ -2260,7 +2335,7 @@ export default function AndroidPosRegister({
       const d = sharedGetTxDateStr(tx);
       return d === sharedTodayStr;
     });
-  }, [outletTransactions, sharedTodayStr, offlineQueueCount]);
+  }, [outletTransactions, sharedTodayStr, offlineQueueCount, sharedGetTxDateStr]);
 
   // Derived Financials Khusus Shift Hari Ini
   const shiftTodaySalesGross = useMemo(() =>
@@ -2355,6 +2430,9 @@ export default function AndroidPosRegister({
 
   const handleClearCart = useCallback(() => {
     setCart([]);
+    try {
+      localStorage.removeItem('MRIS_POS_ACTIVE_CART');
+    } catch (e) {}
     setSelectedCustomer('Pelanggan Umum');
     // Reset meja ke meja pertama yang kosong/available
     setTableStatusMap(currentMap => {
@@ -3374,6 +3452,7 @@ export default function AndroidPosRegister({
   };
 
   // State Guard: Anti-double checkout & rapid checkout protection
+  const isPayingRef = useRef(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [lastPaymentTimestamp, setLastPaymentTimestamp] = useState(0);
   const [lastProcessedCartSummary, setLastProcessedCartSummary] = useState(null);
@@ -3381,7 +3460,7 @@ export default function AndroidPosRegister({
   // TAP 2: EXECUTE INSTANT PAYMENT & RESET TABLE TO KOSONG
   const handleExecuteQuickPayment = (methodName, customTendered = null) => {
     if (cart.length === 0) return;
-    if (isProcessingPayment) return;
+    if (isPayingRef.current || isProcessingPayment) return;
 
     // GUARD 1: Peringatan Nominal Rendah / Anomali (< Rp 5.000)
     if (cartTotal < 5000) {
@@ -3400,8 +3479,9 @@ export default function AndroidPosRegister({
       }
     }
 
+    // Synchronous Lock (0ms delay)
+    isPayingRef.current = true;
     setIsProcessingPayment(true);
-    setTimeout(() => setIsProcessingPayment(false), 2000);
     setLastPaymentTimestamp(nowMs);
     setLastProcessedCartSummary(currentCartSummary);
 
@@ -3420,6 +3500,10 @@ export default function AndroidPosRegister({
 
     // 2. OPTIMISTIC INSTANT UI RESPONSE: Tutup modal & Bersihkan cart seketika (0ms lag)
     setShowPaymentScreenModal(false);
+    setCart([]);
+    try {
+      localStorage.removeItem('MRIS_POS_ACTIVE_CART');
+    } catch (e) {}
     handleClearCart();
     playSuccessKaching();
 
@@ -3769,12 +3853,20 @@ export default function AndroidPosRegister({
       setHeldOrdersList(prev => prev.filter(o => o.tableId !== paidSelectedTableId && o.table_id !== paidSelectedTableId));
     }
 
+    setCart([]);
+    try {
+      localStorage.removeItem('MRIS_POS_ACTIVE_CART');
+    } catch (e) {}
     setOpenedOriginalCart(null);
     setLastCompletedTx(newTx);
     playSuccessKaching();
     handleClearCart();
     setShowReceiptModal(true);
     handleExecuteBatchPrint(newTx, { printKitchen: false, printBar: false, printTableCopy: false, printCashierCopy: true });
+    setTimeout(() => {
+      isPayingRef.current = false;
+      setIsProcessingPayment(false);
+    }, 2000);
   };
 
   // Handle Petty Expense Entry
@@ -4810,6 +4902,7 @@ export default function AndroidPosRegister({
             {/* OFFLINE QUEUE STATUS BADGE — merah mencolok agar kasir tidak menutup app */}
             {offlineQueueCount > 0 && (
               <div 
+                onClick={() => doFlushOfflineQueue()}
                 style={{
                   background: 'rgba(239, 68, 68, 0.20)',
                   border: '2px solid #ef4444',
@@ -4824,11 +4917,11 @@ export default function AndroidPosRegister({
                   gap: '6px',
                   boxShadow: '0 0 16px rgba(239, 68, 68, 0.45)'
                 }}
-                title="Transaksi Offline Tersimpan di Tablet — Klik untuk paksa sync ke Cloud VPS"
+                title="Transaksi Offline Tersimpan di Tablet — Klik untuk paksa sync / bersihkan duplikat ke Cloud VPS"
                 className="animate-pulse"
               >
                 <RefreshCw size={13} className="animate-spin" />
-                <span>🔴 {offlineQueueCount} transaksi belum tersinkron - Jangan tutup aplikasi</span>
+                <span>🔴 {offlineQueueCount} transaksi belum tersinkron (Klik Sinkronkan)</span>
               </div>
             )}
 
