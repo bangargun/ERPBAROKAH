@@ -8,6 +8,8 @@
  * - Jika password salah → hapus dibatalkan
  */
 
+import { getApiUrl } from './apiConfig';
+
 const DELETE_PASSWORD = 'Bismillah';
 
 /**
@@ -285,11 +287,7 @@ export async function executePermanentDelete({
       username: userStr
     };
 
-    const apiUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
-      ? 'https://mris-api.barokahgroupindonesia.tech/api/master-data/delete-item'
-      : '/api/master-data/delete-item';
-
-    await fetch(apiUrl, {
+    await fetch(getApiUrl('/api/master-data/delete-item'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

@@ -27,6 +27,8 @@ import {
   Clock, 
   ArrowLeft, 
   ChevronRight, 
+  ChevronDown,
+  ChevronUp,
   ShieldCheck, 
   RefreshCw,
   PlusCircle,
@@ -1265,7 +1267,17 @@ export default function AndroidPosRegister({
 
               // Master Data (Produk, Kategori, Bahan, Outlet) dikelola di Web Admin — data server adalah otoritatif!
               if (MASTER_DATA_KEYS.has(keyName) && sArr.length > 0) {
-                return sArr;
+                const delOutlets = new Set([
+                  ...(serverMaster.deletedOutletIds || []),
+                  ...(prev.deletedOutletIds || [])
+                ].map(x => String(x).toLowerCase().trim()));
+                return sArr.filter(item => {
+                  if (!item) return false;
+                  const iId = String(item.id !== undefined && item.id !== null ? item.id : '').toLowerCase().trim();
+                  const iCode = String(item.code || '').toLowerCase().trim();
+                  const iName = String(item.name || item.branch_name || '').toLowerCase().trim();
+                  return !delOutlets.has(iId) && !delOutlets.has(iCode) && !delOutlets.has(iName);
+                });
               }
 
               if (sArr.length === 0 && lArr.length === 0) return [];
@@ -1291,20 +1303,24 @@ export default function AndroidPosRegister({
                 }
               });
 
-              // Filter out semua item yang ID/report_no nya ada di deletedLogisticsIds / deletedReportIds / deletedOutflowIds
+              // Filter out semua item yang ID/report_no nya ada di deletedLogisticsIds / deletedReportIds / deletedOutletIds
               const deletedSet = new Set([
                 ...(serverMaster.deletedLogisticsIds || []),
                 ...(serverMaster.deletedReportIds || []),
                 ...(serverMaster.deletedOutflowIds || []),
+                ...(serverMaster.deletedOutletIds || []),
                 ...(prev.deletedLogisticsIds || []),
-                ...(prev.deletedReportIds || [])
-              ].map(x => String(x)));
+                ...(prev.deletedReportIds || []),
+                ...(prev.deletedOutletIds || [])
+              ].map(x => String(x).toLowerCase().trim()));
 
               return Array.from(map.values()).filter(item => {
                 if (!item) return false;
-                const iId = String(item.id !== undefined && item.id !== null ? item.id : '');
-                const iRNo = String(item.report_no || item.receiptNo || '');
-                return !deletedSet.has(iId) && !deletedSet.has(iRNo);
+                const iId = String(item.id !== undefined && item.id !== null ? item.id : '').toLowerCase().trim();
+                const iRNo = String(item.report_no || item.receiptNo || '').toLowerCase().trim();
+                const iCode = String(item.code || '').toLowerCase().trim();
+                const iName = String(item.name || item.branch_name || '').toLowerCase().trim();
+                return !deletedSet.has(iId) && !deletedSet.has(iRNo) && !deletedSet.has(iCode) && !deletedSet.has(iName);
               });
             };
 
@@ -4130,6 +4146,10 @@ export default function AndroidPosRegister({
     // Daftar outlet MURNI dari masterData / Pengaturan Web Admin (Data Asli MySQL)
     const availableOutlets = (() => {
       const map = new Map();
+      const delOutlets = new Set([
+        ...(masterData?.deletedOutletIds || [])
+      ].map(x => String(x).toLowerCase().trim()));
+
       const sourceList = (Array.isArray(masterData?.outlets) && masterData.outlets.length > 0)
         ? masterData.outlets
         : (initialMasterData?.outlets || []);
@@ -4137,7 +4157,11 @@ export default function AndroidPosRegister({
       sourceList.forEach(o => {
         if (o && (o.name || o.branch_name)) {
           const id = String(o.id || o.outlet_id || Date.now());
-          map.set(id, { id: o.id || id, name: o.name || o.branch_name, code: o.code || 'OUTLET' });
+          const oCode = String(o.code || '').toLowerCase().trim();
+          const oName = String(o.name || o.branch_name || '').toLowerCase().trim();
+          if (!delOutlets.has(String(id).toLowerCase()) && !delOutlets.has(oCode) && !delOutlets.has(oName)) {
+            map.set(id, { id: o.id || id, name: o.name || o.branch_name, code: o.code || 'OUTLET' });
+          }
         }
       });
 
@@ -4287,7 +4311,17 @@ export default function AndroidPosRegister({
                       .then(r => r.ok ? r.json() : null)
                       .then(data => {
                         if (data && typeof data === 'object' && Array.isArray(data.outlets)) {
-                          setMasterData(prev => ({ ...prev, ...data, outlets: data.outlets }));
+                          const delOutlets = new Set((data.deletedOutletIds || []).map(x => String(x).toLowerCase().trim()));
+                          const cleanOutlets = data.outlets.filter(o => {
+                            const oId = String(o.id ?? '').toLowerCase().trim();
+                            const oCode = String(o.code ?? '').toLowerCase().trim();
+                            const oName = String(o.name ?? o.branch_name ?? '').toLowerCase().trim();
+                            return !delOutlets.has(oId) && !delOutlets.has(oCode) && !delOutlets.has(oName);
+                          });
+                          setMasterData(prev => ({ ...prev, ...data, outlets: cleanOutlets }));
+                          try {
+                            localStorage.setItem('mris_master_data', JSON.stringify({ ...masterData, ...data, outlets: cleanOutlets }));
+                          } catch (e) {}
                         }
                       })
                       .catch(() => {});

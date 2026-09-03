@@ -746,30 +746,27 @@ export default function App() {
             })();
 
             const mergedOutlets = (() => {
-              const map = new Map();
               const delSet = new Set([
                 ...(prev.deletedOutletIds || []),
                 ...(serverData.deletedOutletIds || [])
               ].map(x => String(x).toLowerCase().trim()));
 
-              (serverData.outlets || initialMasterData.outlets || []).forEach(o => {
-                const k = String(o.id || o.code || o.name || '').toLowerCase().trim();
-                if (k && !delSet.has(k)) map.set(k, o);
-              });
+              // Data server adalah satu-satunya otoritas (Single Source of Truth) untuk Cabang Outlet!
+              const sourceList = (Array.isArray(serverData.outlets) && serverData.outlets.length > 0)
+                ? serverData.outlets
+                : (Array.isArray(prev.outlets) ? prev.outlets : (initialMasterData.outlets || []));
 
-              (prev.outlets || []).forEach(o => {
-                const k = String(o.id || o.code || o.name || '').toLowerCase().trim();
-                if (k && !delSet.has(k)) {
-                  if (map.has(k)) {
-                    const serverO = map.get(k);
-                    const serverTs = Number(serverO._updatedAt || serverO._lastMutated || 0);
-                    const localTs = Number(o._updatedAt || o._lastMutated || 0);
-                    if (localTs >= serverTs) {
-                      map.set(k, { ...serverO, ...o });
-                    }
-                  } else {
-                    map.set(k, o);
-                  }
+              const map = new Map();
+              sourceList.forEach(o => {
+                if (!o) return;
+                const oId = String(o.id ?? '').toLowerCase().trim();
+                const oCode = String(o.code ?? '').toLowerCase().trim();
+                const oName = String(o.name ?? o.branch_name ?? '').toLowerCase().trim();
+                if (delSet.has(oId) || delSet.has(oCode) || delSet.has(oName)) return;
+
+                const k = oId || oCode || oName;
+                if (k && !map.has(k)) {
+                  map.set(k, o);
                 }
               });
 
