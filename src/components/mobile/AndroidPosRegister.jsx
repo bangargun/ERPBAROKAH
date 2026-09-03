@@ -1133,6 +1133,21 @@ export default function AndroidPosRegister({
             const remaining = curQ.filter(item => String(item.id || item.receipt_no || '') !== String(tx.id || tx.receipt_no || ''));
             localStorage.setItem('MRIS_POS_OFFLINE_TX_QUEUE', JSON.stringify(remaining));
             setOfflineQueueCount(remaining.length);
+
+            // Update status transaksi di memori masterData menjadi approved & tersinkron
+            setMasterData(curr => {
+              const updateList = (list) => (list || []).map(t => {
+                if (String(t.id || t.receipt_no || '') === String(tx.id || tx.receipt_no || '')) {
+                  return { ...t, status: 'approved', is_offline_pending: false, is_synced: true };
+                }
+                return t;
+              });
+              return {
+                ...curr,
+                salesTransactions: updateList(curr?.salesTransactions),
+                transactions: updateList(curr?.transactions)
+              };
+            });
           } else if (res.status === 400) {
             // Bad request / invalid / expired data: buang dari antrean agar tidak menghalangi antrean lain
             const curQRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
@@ -3782,11 +3797,12 @@ export default function AndroidPosRegister({
       }
     });
 
-    const isOnlineNow = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    const isReallyOnline = Boolean(isOnline) && (typeof navigator !== 'undefined' ? navigator.onLine : true);
     const finalTx = {
       ...newTx,
-      status: isOnlineNow ? 'approved' : 'offline_pending',
-      is_offline_pending: !isOnlineNow
+      status: isReallyOnline ? 'approved' : 'offline_pending',
+      is_offline_pending: !isReallyOnline,
+      is_synced: false
     };
 
     // Save transaction directly into Web Master Data
@@ -3813,26 +3829,43 @@ export default function AndroidPosRegister({
       } catch (e) {}
 
       // 2. Pemicu Pengiriman Langsung ke Server VPS
-      fetch(getApiUrl('/api/pos/transaction'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalTx)
-      })
-      .then(res => res.json())
-      .then(resData => {
-        if (resData && (resData.success || resData.status === 'success')) {
-          try {
-            const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
-            const q = qRaw ? JSON.parse(qRaw) : [];
-            const remaining = q.filter(item => String(item.id || item.receipt_no || '') !== String(finalTx.id || finalTx.receipt_no || ''));
-            localStorage.setItem('MRIS_POS_OFFLINE_TX_QUEUE', JSON.stringify(remaining));
-            setOfflineQueueCount(remaining.length);
-          } catch (e) {}
-        }
-      })
-      .catch(() => {
-        doFlushOfflineQueue();
-      });
+      if (isReallyOnline) {
+        fetch(getApiUrl('/api/pos/transaction'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(finalTx)
+        })
+        .then(res => res.json())
+        .then(resData => {
+          if (resData && (resData.success || resData.status === 'success')) {
+            try {
+              const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+              const q = qRaw ? JSON.parse(qRaw) : [];
+              const remaining = q.filter(item => String(item.id || item.receipt_no || '') !== String(finalTx.id || finalTx.receipt_no || ''));
+              localStorage.setItem('MRIS_POS_OFFLINE_TX_QUEUE', JSON.stringify(remaining));
+              setOfflineQueueCount(remaining.length);
+            } catch (e) {}
+
+            // Update status transaksi di memori lokal menjadi approved & tersinkron
+            setMasterData(curr => {
+              const updateList = (list) => (list || []).map(t => {
+                if (String(t.id || t.receipt_no || '') === String(finalTx.id || finalTx.receipt_no || '')) {
+                  return { ...t, status: 'approved', is_offline_pending: false, is_synced: true };
+                }
+                return t;
+              });
+              return {
+                ...curr,
+                salesTransactions: updateList(curr?.salesTransactions),
+                transactions: updateList(curr?.transactions)
+              };
+            });
+          }
+        })
+        .catch(() => {
+          doFlushOfflineQueue();
+        });
+      }
 
       return updated;
     });
@@ -6111,16 +6144,42 @@ export default function AndroidPosRegister({
             )}
 
             {/* KETERANGAN SYNC MOBILE APK DENGAN SERVER & DATABASE */}
-            <div style={{ background: T.bgCard, padding: '14px 18px', borderRadius: '14px', border: `1px solid ${T.borderCard}`, marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', boxShadow: isCalmSage ? '0 2px 8px rgba(21,46,34,0.05)' : 'none' }}>
+            <div style={{
+              background: T.bgCard,
+              padding: '14px 18px',
+              borderRadius: '14px',
+              border: `1px solid ${(!isOnline || offlineQueueCount > 0) ? '#f59e0b' : T.borderCard}`,
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+              boxShadow: isCalmSage ? '0 2px 8px rgba(21,46,34,0.05)' : 'none'
+            }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }} />
+                <div style={{
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  background: (!isOnline || offlineQueueCount > 0) ? '#f59e0b' : '#10b981',
+                  boxShadow: (!isOnline || offlineQueueCount > 0) ? '0 0 10px #f59e0b' : '0 0 10px #10b981'
+                }} />
                 <div>
                   <div style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>Sinkronisasi Riwayat Transaksi:</span>
-                    <span style={{ color: '#10b981', fontWeight: '900' }}>Live Server & Database Synced</span>
+                    <span style={{ color: (!isOnline || offlineQueueCount > 0) ? '#d97706' : '#10b981', fontWeight: '900' }}>
+                      {!isOnline
+                        ? '🟡 Mode Offline (Tersimpan di Tablet)'
+                        : (offlineQueueCount > 0 ? `🟠 ${offlineQueueCount} Transaksi Menunggu Sinkron` : '🟢 Live Server & Database Synced')}
+                    </span>
                   </div>
                   <div style={{ fontSize: '0.76rem', color: T.txtSecondary, marginTop: '2px', fontWeight: '600' }}>
-                    Seluruh riwayat transaksi kasir terhubung dan tersimpan real-time di Database Server & Web Admin.
+                    {!isOnline
+                      ? 'Aplikasi sedang berjalan offline. Transaksi kasir tersimpan aman di tablet & otomatis dikirim ke Server saat online kembali.'
+                      : (offlineQueueCount > 0 
+                          ? `${offlineQueueCount} transaksi antrean lokal sedang menunggu diunggah ke Database Server Cloud VPS.`
+                          : 'Seluruh riwayat transaksi kasir terhubung dan tersimpan real-time di Database Server & Web Admin.')}
                   </div>
                 </div>
               </div>
@@ -6164,53 +6223,70 @@ export default function AndroidPosRegister({
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {filteredRiwayatTransactions.map(tx => (
-                  <div 
-                    key={tx.id} 
-                    style={{ 
-                      background: T.bgCard, 
-                      padding: '16px 20px', 
-                      borderRadius: '16px', 
-                      border: `1px solid ${T.borderCard}`, 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
-                      boxShadow: isCalmSage ? '0 2px 8px rgba(21,46,34,0.05)' : '0 4px 14px rgba(0,0,0,0.25)',
-                      flexWrap: 'wrap',
-                      gap: '12px'
-                    }}
-                  >
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '0.92rem', fontWeight: '900', color: '#0284c7' }}>#{tx.id}</span>
+                {filteredRiwayatTransactions.map(tx => {
+                  const txKey = String(tx.id || tx.receipt_no || tx.receiptNo || '');
+                  let isPendingOffline = false;
+                  try {
+                    const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+                    const q = qRaw ? JSON.parse(qRaw) : [];
+                    if (q.some(it => String(it.id || it.receipt_no || '') === txKey)) {
+                      isPendingOffline = true;
+                    }
+                  } catch (e) {}
 
-                        {/* BADGE STATUS TRANSAKSI */}
-                        {(tx.is_offline_pending || tx.status === 'offline_pending' || tx.status === 'ditunda') ? (
-                          <span style={{ fontSize: '0.70rem', padding: '3px 10px', borderRadius: '6px', background: 'rgba(245,158,11,0.15)', color: '#d97706', border: '1px solid #f59e0b', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            Pending Sync (Offline)
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: '0.70rem', padding: '3px 10px', borderRadius: '6px', background: 'rgba(16,185,129,0.15)', color: '#059669', border: '1px solid #10b981', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            Approved / Tersinkron
-                          </span>
-                        )}
+                  if (tx.is_offline_pending || tx.status === 'offline_pending' || tx.status === 'ditunda' || (!tx.is_synced && !isOnline && tx.date === sharedTodayStr)) {
+                    isPendingOffline = true;
+                  }
 
-                        <span style={{ fontSize: '0.72rem', padding: '3px 9px', borderRadius: '6px', background: isCalmSage ? '#eef5f0' : '#1e293b', color: T.txtPrimary, border: `1px solid ${T.borderCard}`, fontWeight: '800' }}>
-                          {tx.payment_method || 'Cash'}
-                        </span>
-                        <span style={{ fontSize: '0.72rem', padding: '3px 9px', borderRadius: '6px', background: 'rgba(99,102,241,0.15)', color: '#6366f1', border: '1px solid rgba(99,102,241,0.3)', fontWeight: '800' }}>
-                          {tx.order_type || 'Dine In'}
-                        </span>
-                        {tx.table_number && (
-                          <span style={{ fontSize: '0.74rem', color: '#d97706', fontWeight: '800', background: 'rgba(245,158,11,0.12)', padding: '2px 8px', borderRadius: '6px' }}>
-                            {tx.table_number}
+                  return (
+                    <div 
+                      key={tx.id} 
+                      style={{ 
+                        background: T.bgCard, 
+                        padding: '16px 20px', 
+                        borderRadius: '16px', 
+                        border: `1px solid ${isPendingOffline ? '#f59e0b' : T.borderCard}`, 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        boxShadow: isCalmSage ? '0 2px 8px rgba(21,46,34,0.05)' : '0 4px 14px rgba(0,0,0,0.25)',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.92rem', fontWeight: '900', color: '#0284c7' }}>#{tx.id}</span>
+
+                          {/* BADGE STATUS TRANSAKSI */}
+                          {isPendingOffline ? (
+                            <span style={{ fontSize: '0.70rem', padding: '3px 10px', borderRadius: '6px', background: 'rgba(245,158,11,0.15)', color: '#d97706', border: '1px solid #f59e0b', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }} title="Transaksi tersimpan aman di tablet kasir dan menunggu koneksi online untuk dikirim ke server">
+                              <Clock size={11} />
+                              Pending (Offline)
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.70rem', padding: '3px 10px', borderRadius: '6px', background: 'rgba(16,185,129,0.15)', color: '#059669', border: '1px solid #10b981', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }} title="Transaksi telah lunas dan terverifikasi di database Cloud VPS">
+                              <CheckCircle size={11} />
+                              Lunas (Tersinkron)
+                            </span>
+                          )}
+
+                          <span style={{ fontSize: '0.72rem', padding: '3px 9px', borderRadius: '6px', background: isCalmSage ? '#eef5f0' : '#1e293b', color: T.txtPrimary, border: `1px solid ${T.borderCard}`, fontWeight: '800' }}>
+                            {tx.payment_method || 'Cash'}
                           </span>
-                        )}
+                          <span style={{ fontSize: '0.72rem', padding: '3px 9px', borderRadius: '6px', background: 'rgba(99,102,241,0.15)', color: '#6366f1', border: '1px solid rgba(99,102,241,0.3)', fontWeight: '800' }}>
+                            {tx.order_type || 'Dine In'}
+                          </span>
+                          {tx.table_number && (
+                            <span style={{ fontSize: '0.74rem', color: '#d97706', fontWeight: '800', background: 'rgba(245,158,11,0.12)', padding: '2px 8px', borderRadius: '6px' }}>
+                              {tx.table_number}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: T.txtSecondary, marginTop: '6px', fontWeight: '600' }}>
+                          {tx.date} {tx.time || ''} • Pelanggan: <strong style={{ color: T.txtPrimary }}>{tx.customer_name || 'Pelanggan Umum'}</strong> • Kasir: <strong style={{ color: T.txtPrimary }}>{tx.cashier || 'Kasir'}</strong>
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.78rem', color: T.txtSecondary, marginTop: '6px', fontWeight: '600' }}>
-                        {tx.date} {tx.time || ''} • Pelanggan: <strong style={{ color: T.txtPrimary }}>{tx.customer_name || 'Pelanggan Umum'}</strong> • Kasir: <strong style={{ color: T.txtPrimary }}>{tx.cashier || 'Kasir'}</strong>
-                      </div>
-                    </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                       <div style={{ textAlign: 'right' }}>
@@ -6234,9 +6310,10 @@ export default function AndroidPosRegister({
                       >
                         Detail Struk
                       </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -10632,6 +10709,29 @@ export default function AndroidPosRegister({
               <div style={{ color: T.txtSecondary, marginTop: '2px', fontWeight: '600' }}>Waktu: <strong style={{ color: T.txtPrimary }}>{selectedTxDetail.date} {selectedTxDetail.time || ''}</strong></div>
               <div style={{ color: T.txtSecondary, marginTop: '2px', fontWeight: '600' }}>Tipe: <strong style={{ color: T.txtPrimary }}>{selectedTxDetail.order_type} ({selectedTxDetail.table_number || 'N/A'})</strong></div>
               <div style={{ color: T.txtSecondary, marginTop: '2px', fontWeight: '600' }}>Metode Bayar: <strong style={{ color: '#10b981' }}>{selectedTxDetail.payment_method}</strong></div>
+              <div style={{ color: T.txtSecondary, marginTop: '4px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>Status Data:</span>
+                {(() => {
+                  const txKey = String(selectedTxDetail.id || selectedTxDetail.receipt_no || '');
+                  let isPending = false;
+                  try {
+                    const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+                    const q = qRaw ? JSON.parse(qRaw) : [];
+                    if (q.some(it => String(it.id || it.receipt_no || '') === txKey)) isPending = true;
+                  } catch (e) {}
+                  if (selectedTxDetail.is_offline_pending || selectedTxDetail.status === 'offline_pending') isPending = true;
+
+                  return isPending ? (
+                    <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(245,158,11,0.15)', color: '#d97706', border: '1px solid #f59e0b', fontWeight: '800' }}>
+                      🟡 Pending Sync (Tersimpan di Tablet)
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(16,185,129,0.15)', color: '#059669', border: '1px solid #10b981', fontWeight: '800' }}>
+                      🟢 Lunas (Tersinkron ke Cloud VPS)
+                    </span>
+                  );
+                })()}
+              </div>
               <hr style={{ borderColor: T.borderCard, margin: '10px 0' }} />
               {(selectedTxDetail.items || []).map((it, idx) => (
                 <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', color: T.txtPrimary, margin: '6px 0', fontWeight: '600' }}>
