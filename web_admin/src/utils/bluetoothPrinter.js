@@ -111,6 +111,17 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
   const tableDisplay = isTakeAway ? 'TAKE AWAY' : (tx.table_number || 'Meja 01');
   const custName = (tx.customer_name || tx.customerName || tx.customer || tx.nama_pelanggan || tx.pelanggan || 'Pelanggan Umum');
 
+  const appendInformationalReceiptNotice = (targetLines) => {
+    targetLines.push('[DIV]');
+    targetLines.push('[C][B]*** PERINGATAN KERAS ***');
+    targetLines.push('[C][B]STRUK INI BUKANLAH STRUK PEMBAYARAN!');
+    targetLines.push('[C][B]STRUK INI HANYALAH SEBAGAI STRUK INFORMASI.');
+    targetLines.push('[C]JIKA KASIR MEMINTA STRUK INI SEBAGAI PEMBAYARAN');
+    targetLines.push('[C]MAKA ANDA MENDAPATKAN 1 JUTA LANGSUNG DARI KASIR');
+    targetLines.push('[C](Kecuali ada kondisi tertentu misal');
+    targetLines.push('[C]jaringan putus dan sebagainya)');
+  };
+
   if (ticketType === 'kitchen') {
     // ===== STRUK DAPUR (KITCHEN TICKET - TANPA HARGA) =====
     lines.push('[C][B]' + outlet);
@@ -125,7 +136,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push(rowLine('Waktu:', (tx.date || '') + ' ' + (tx.time || '')));
     lines.push(rowLine('Kasir/Waiter:', tx.cashier || '-'));
     lines.push('[DIV]');
-    lines.push('[B]QTY  NAMA PESANAN (DAPUR)');
+    lines.push('[B]QTY  NAMA PESANAN (DAPUR/KOKI)');
     lines.push('[DIV]');
     (tx.items || []).forEach(it => {
       lines.push(`[B]${it.qty || 1}x  ${(it.name || it.item_name || '').toUpperCase()}`);
@@ -133,13 +144,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     });
     lines.push('[DIVD]');
     lines.push('[C]*** UNTUK KOKI / DAPUR (TANPA HARGA) ***');
-    lines.push('[DIV]');
-    lines.push('[C][B]*** PERINGATAN KERAS ***');
-    lines.push('[C][B]STRUK INI BUKAN STRUK PEMBAYARAN');
-    lines.push('[C]JANGAN DIBAYAR SEBELUM DIBERI STRUK RESMI KASIR');
-    lines.push('[C]Apabila kasir memberikan struk ini dan anda');
-    lines.push('[C]melakukan pembayaran, maka anda berhak mendapatkan');
-    lines.push('[C]1 JUTA RUPIAH LANGSUNG DARI KASIR');
+    appendInformationalReceiptNotice(lines);
 
   } else if (ticketType === 'bar') {
     // ===== STRUK BAR (BAR TICKET - TANPA HARGA) =====
@@ -163,13 +168,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     });
     lines.push('[DIVD]');
     lines.push('[C]*** UNTUK BARTENDER / BAR (TANPA HARGA) ***');
-    lines.push('[DIV]');
-    lines.push('[C][B]*** PERINGATAN KERAS ***');
-    lines.push('[C][B]STRUK INI BUKAN STRUK PEMBAYARAN');
-    lines.push('[C]JANGAN DIBAYAR SEBELUM DIBERI STRUK RESMI KASIR');
-    lines.push('[C]Apabila kasir memberikan struk ini dan anda');
-    lines.push('[C]melakukan pembayaran, maka anda berhak mendapatkan');
-    lines.push('[C]1 JUTA RUPIAH LANGSUNG DARI KASIR');
+    appendInformationalReceiptNotice(lines);
 
   } else if (ticketType === 'bill') {
     // ===== CONTOH TAGIHAN SEMENTARA / BILL MEJA (DENGAN RINCIAN HARGA) =====
@@ -196,18 +195,12 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push('[DIVD]');
     const amountVal = Number(tx.amount || tx.grandTotal || tx.total || 0);
     lines.push('[B]' + rowLine('TOTAL TAGIHAN:', fmt(amountVal)));
-    lines.push('[DIV]');
-    lines.push('[C][B]*** PERINGATAN KERAS ***');
-    lines.push('[C][B]STRUK INI BUKAN STRUK PEMBAYARAN');
-    lines.push('[C]JANGAN DIBAYAR SEBELUM DIBERI STRUK RESMI KASIR');
-    lines.push('[C]Apabila kasir memberikan struk ini dan anda');
-    lines.push('[C]melakukan pembayaran, maka anda berhak mendapatkan');
-    lines.push('[C]1 JUTA RUPIAH LANGSUNG DARI KASIR');
+    appendInformationalReceiptNotice(lines);
 
   } else if (ticketType === 'table' || ticketType === 'checker') {
-    // ===== STRUK MEJA / ORDER CHECKER (TANPA HARGA) =====
+    // ===== STRUK MEJA / ORDER CHECKER / TABLE COPY (TANPA HARGA) =====
     lines.push('[C][B]' + outlet);
-    lines.push('[C]STRUK MEJA / ORDER CHECKER');
+    lines.push('[C]STRUK MEJA - TABLE CHECKER');
     lines.push('[DIV]');
     lines.push(rowLine('No. Order:', tx.id || tx.receipt_no || '-'));
     lines.push(rowLine('Tipe Order:', orderTypeLabel));
@@ -218,21 +211,42 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push(rowLine('Waktu:', (tx.date || '') + ' ' + (tx.time || '')));
     lines.push(rowLine('Kasir/Waiter:', tx.cashier || '-'));
     lines.push('[DIV]');
-    lines.push('[B]QTY  NAMA PESANAN');
+    lines.push('[B]QTY  NAMA PESANAN (TABLE)');
     lines.push('[DIV]');
     (tx.items || []).forEach(it => {
       lines.push(`[B]${it.qty || 1}x  ${(it.name || it.item_name || '').toUpperCase()}`);
       if (it.notes) lines.push(`   * Catatan: ${it.notes}`);
     });
     lines.push('[DIVD]');
-    lines.push('[C]*** PESANAN TANPA HARGA (CHECKER MEJA) ***');
+    lines.push('[C]*** PESANAN TABLE MEJA (TANPA HARGA) ***');
+    appendInformationalReceiptNotice(lines);
+
+  } else if (ticketType === 'cashier_hold') {
+    // ===== STRUK COPY KASIR SAAT SIMPAN PESANAN GANTUNG (DENGAN RINCIAN HARGA) =====
+    lines.push('[C][B]' + outlet);
+    lines.push('[C]STRUK COPY KASIR (BELUM DIBAYAR)');
     lines.push('[DIV]');
-    lines.push('[C][B]*** PERINGATAN KERAS ***');
-    lines.push('[C][B]STRUK INI BUKAN STRUK PEMBAYARAN');
-    lines.push('[C]JANGAN DIBAYAR SEBELUM DIBERI STRUK RESMI KASIR');
-    lines.push('[C]Apabila kasir memberikan struk ini dan anda');
-    lines.push('[C]melakukan pembayaran, maka anda berhak mendapatkan');
-    lines.push('[C]1 JUTA RUPIAH LANGSUNG DARI KASIR');
+    lines.push(rowLine('No. Order:', tx.id || tx.receipt_no || '-'));
+    lines.push(rowLine('Tanggal:', tx.date || ''));
+    lines.push(rowLine('Waktu:', tx.time || ''));
+    lines.push(rowLine('Tipe Order:', orderTypeLabel));
+    if (!isTakeAway) {
+      lines.push(rowLine('Meja:', tableDisplay));
+    }
+    lines.push(rowLine('Pelanggan:', custName));
+    lines.push(rowLine('Kasir:', tx.cashier || '-'));
+    lines.push('[DIV]');
+    lines.push(rowLine('ITEM', 'SUBTOTAL'));
+    lines.push('[DIV]');
+    (tx.items || []).forEach(it => {
+      const sub = (it.price || it.price_unit || 0) * (it.qty || 1);
+      lines.push(rowLine(`${it.qty || 1}x ${(it.name || it.item_name || '').toUpperCase()}`, fmt(sub)));
+      if (it.notes) lines.push(`   * Catatan: ${it.notes}`);
+    });
+    lines.push('[DIVD]');
+    const amountVal = Number(tx.amount || tx.grandTotal || tx.total || 0);
+    lines.push('[B]' + rowLine('TOTAL ESTIMASI:', fmt(amountVal)));
+    appendInformationalReceiptNotice(lines);
 
   } else {
     // ===== STRUK NOTA PEMBAYARAN (DEFAULT RECEIPT - DENGAN HARGA) =====

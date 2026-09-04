@@ -442,8 +442,8 @@ export default function AndroidPosRegister({
     } catch (e) {}
   }, [cart]);
 
-  const [orderType, setOrderType] = useState('Dine In'); // 'Dine In' | 'Take Away'
-  const [selectedCustomer, setSelectedCustomer] = useState('Pelanggan Umum');
+  const [orderType, setOrderType] = useState(''); // 'Dine In' | 'Take Away' (Wajib dipilih)
+  const [selectedCustomer, setSelectedCustomer] = useState(''); // Wajib diisi nama pelanggan
   const [lastCompletedTx, setLastCompletedTx] = useState(null);
   const [activeSuggestRowId, setActiveSuggestRowId] = useState(null);
 
@@ -2464,7 +2464,8 @@ export default function AndroidPosRegister({
     try {
       localStorage.removeItem('MRIS_POS_ACTIVE_CART');
     } catch (e) {}
-    setSelectedCustomer('Pelanggan Umum');
+    setSelectedCustomer('');
+    setOrderType('');
     // Reset meja ke meja pertama yang kosong/available
     setTableStatusMap(currentMap => {
       const firstAvailable = tables.find(t => !currentMap[t.id] || currentMap[t.id]?.status !== 'occupied');
@@ -2529,6 +2530,19 @@ export default function AndroidPosRegister({
   // HOLD DINE-IN TABLE OR TAKE AWAY ORDER (SIMPAN PESANAN GANTUNG BEBAS & AUTO PRINT DAPUR)
   const handleHoldTableOrder = () => {
     if (cart.length === 0 && (!openedOriginalCart || openedOriginalCart.length === 0)) return;
+
+    // 1. VALIDASI WAJIB NAMA PELANGGAN
+    if (!selectedCustomer || selectedCustomer.trim() === '' || selectedCustomer.trim().toLowerCase() === 'pelanggan umum') {
+      alert('⚠️ PESANAN GAGAL DISIMPAN:\n\nMohon isi Nama Pelanggan terlebih dahulu sebelum menyimpan pesanan.');
+      setShowCustomerSearchModal(true);
+      return;
+    }
+
+    // 2. VALIDASI WAJIB JENIS TRANSAKSI (Dine In atau Take Away)
+    if (!orderType || (orderType !== 'Dine In' && orderType !== 'Take Away')) {
+      alert('⚠️ PESANAN GAGAL DISIMPAN:\n\nMohon pilih Jenis Transaksi (Dine In atau Take Away) terlebih dahulu sebelum menyimpan pesanan.');
+      return;
+    }
 
     const isDineIn = orderType === 'Dine In' && selectedTableId;
 
@@ -2661,6 +2675,17 @@ export default function AndroidPosRegister({
 
   // GENERATE CONTOH TAGIHAN SEMENTARA (MASUK PESANAN GANTUNG & CETAK CONTOH TAGIHAN)
   const handleGenerateContohTagihan = () => {
+    // Validasi Wajib Nama Pelanggan & Jenis Transaksi
+    if (!selectedCustomer || selectedCustomer.trim() === '' || selectedCustomer.trim().toLowerCase() === 'pelanggan umum') {
+      alert('⚠️ GAGAL MENCETAK CONTOH TAGIHAN:\n\nMohon isi Nama Pelanggan terlebih dahulu.');
+      setShowCustomerSearchModal(true);
+      return;
+    }
+    if (!orderType || (orderType !== 'Dine In' && orderType !== 'Take Away')) {
+      alert('⚠️ GAGAL MENCETAK CONTOH TAGIHAN:\n\nMohon pilih Jenis Transaksi (Dine In atau Take Away) terlebih dahulu.');
+      return;
+    }
+
     // 1. Tentukan items yang akan dijadikan bill
     let effectiveItems = [...cart];
     let effectiveTotal = cartTotal;
@@ -2860,14 +2885,15 @@ export default function AndroidPosRegister({
       }
     }
 
-    // 3. STRUK MEJA / BILL SEMENTARA (CONTOH TAGIHAN DENGAN HARGA)
+    // 3. STRUK MEJA / TABLE COPY (TANPA HARGA)
     if (selections.printTableCopy) {
-      printJobs.push({ type: 'bill', text: buildReceiptText(tx, outletName, 'bill', printerPaperWidth, fmtRp, headerFooter) });
+      printJobs.push({ type: 'table', text: buildReceiptText(tx, outletName, 'table', printerPaperWidth, fmtRp, headerFooter) });
     }
 
     // 4. STRUK KASIR / NOTA PEMBAYARAN (DENGAN HARGA)
     if (selections.printCashierCopy) {
-      printJobs.push({ type: 'receipt', text: buildReceiptText(tx, outletName, 'receipt', printerPaperWidth, fmtRp, headerFooter) });
+      const isHold = tx.status === 'Belum Dibayar' || String(tx.id || '').startsWith('HOLD-') || Boolean(tx.isContohTagihan);
+      printJobs.push({ type: 'receipt', text: buildReceiptText(tx, outletName, isHold ? 'cashier_hold' : 'receipt', printerPaperWidth, fmtRp, headerFooter) });
     }
 
     if (printJobs.length === 0) return;
@@ -5258,10 +5284,23 @@ export default function AndroidPosRegister({
                         setCustomerSearchQuery('');
                         setShowCustomerSearchModal(true);
                       }}
-                      style={{ background: 'none', border: 'none', color: isLight ? '#1d4ed8' : '#60a5fa', fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      style={{
+                        background: (!selectedCustomer || selectedCustomer.trim() === '' || selectedCustomer.trim().toLowerCase() === 'pelanggan umum') ? 'rgba(239, 68, 68, 0.15)' : 'rgba(37, 99, 235, 0.12)',
+                        border: `1.5px solid ${(!selectedCustomer || selectedCustomer.trim() === '' || selectedCustomer.trim().toLowerCase() === 'pelanggan umum') ? '#ef4444' : '#2563eb'}`,
+                        color: (!selectedCustomer || selectedCustomer.trim() === '' || selectedCustomer.trim().toLowerCase() === 'pelanggan umum') ? '#ef4444' : (isLight ? '#1d4ed8' : '#60a5fa'),
+                        fontSize: '0.80rem',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '4px 10px',
+                        borderRadius: '8px'
+                      }}
+                      title="Klik untuk mengisi nama pelanggan (Wajib)"
                     >
                       <User size={14} />
-                      <span>{selectedCustomer || 'Pilih Pelanggan'}</span>
+                      <span>{selectedCustomer && selectedCustomer.trim().toLowerCase() !== 'pelanggan umum' ? selectedCustomer : '⚠️ Wajib Isi Nama Pelanggan'}</span>
                     </button>
                     <button
                       type="button"
@@ -5313,10 +5352,14 @@ export default function AndroidPosRegister({
                           ))}
                         </select>
                       </div>
-                    ) : (
-                      <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtMuted, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span></span>
+                    ) : orderType === 'Take Away' ? (
+                      <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span>🛍️</span>
                         <span>Take Away</span>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.78rem', fontWeight: '900', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span>⚠️ Wajib Pilih Jenis Order</span>
                       </div>
                     )}
 
@@ -5325,7 +5368,7 @@ export default function AndroidPosRegister({
                       <span>{guestCount} Pax</span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '4px', background: T.bgApp, padding: '3px', borderRadius: '8px', border: `1px solid ${T.borderSubtle}` }}>
+                  <div style={{ display: 'flex', gap: '4px', background: T.bgApp, padding: '3px', borderRadius: '8px', border: `1.5px solid ${!orderType ? '#ef4444' : T.borderSubtle}` }}>
                     <button
                       type="button"
                       onClick={() => setOrderType('Dine In')}
@@ -5334,7 +5377,7 @@ export default function AndroidPosRegister({
                         borderRadius: '6px',
                         border: 'none',
                         background: orderType === 'Dine In' ? '#2563eb' : 'transparent',
-                        color: orderType === 'Dine In' ? '#ffffff' : '#94a3b8',
+                        color: orderType === 'Dine In' ? '#ffffff' : (!orderType ? '#ef4444' : '#94a3b8'),
                         fontSize: '0.74rem',
                         fontWeight: '800',
                         cursor: 'pointer',
@@ -5351,7 +5394,7 @@ export default function AndroidPosRegister({
                         borderRadius: '6px',
                         border: 'none',
                         background: orderType === 'Take Away' ? '#f59e0b' : 'transparent',
-                        color: orderType === 'Take Away' ? '#ffffff' : '#94a3b8',
+                        color: orderType === 'Take Away' ? '#ffffff' : (!orderType ? '#ef4444' : '#94a3b8'),
                         fontSize: '0.74rem',
                         fontWeight: '800',
                         cursor: 'pointer',
@@ -5817,6 +5860,15 @@ export default function AndroidPosRegister({
                       disabled={cart.length === 0}
                       onClick={() => {
                         if (cart.length > 0) {
+                          if (!selectedCustomer || selectedCustomer.trim() === '' || selectedCustomer.trim().toLowerCase() === 'pelanggan umum') {
+                            alert('⚠️ PROSES BAYAR GAGAL:\n\nMohon isi Nama Pelanggan terlebih dahulu sebelum melanjutkan pembayaran.');
+                            setShowCustomerSearchModal(true);
+                            return;
+                          }
+                          if (!orderType || (orderType !== 'Dine In' && orderType !== 'Take Away')) {
+                            alert('⚠️ PROSES BAYAR GAGAL:\n\nMohon pilih Jenis Transaksi (Dine In atau Take Away) terlebih dahulu.');
+                            return;
+                          }
                           setSelectedPaymentMethod('Cash');
                           setTenderedCash('');
                           setShowPaymentScreenModal(true);
@@ -10877,18 +10929,54 @@ export default function AndroidPosRegister({
             </div>
 
             {/* REAL-TIME SEARCH FIELD */}
-            <div style={{ position: 'relative', marginBottom: '16px' }}>
+            <div style={{ position: 'relative', marginBottom: customerSearchQuery.trim() !== '' ? '8px' : '16px' }}>
               <input
                 type="text"
                 autoFocus
                 value={customerSearchQuery}
                 onChange={e => setCustomerSearchQuery(e.target.value)}
-                placeholder="Ketik nama pelanggan atau No. HP..."
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && customerSearchQuery.trim() !== '') {
+                    setSelectedCustomer(customerSearchQuery.trim());
+                    setShowCustomerSearchModal(false);
+                  }
+                }}
+                placeholder="Ketik nama pelanggan lalu tekan Enter / Pilih..."
                 className="form-input"
-                style={{ width: '100%', paddingLeft: '40px', height: '44px', fontSize: '0.9rem', background: 'var(--pos-bg-app)', border: '1px solid #38bdf8' }}
+                style={{ width: '100%', paddingLeft: '40px', height: '44px', fontSize: '0.9rem', background: 'var(--pos-bg-app)', border: '1.5px solid #38bdf8' }}
               />
               <Search size={18} color="#38bdf8" style={{ position: 'absolute', left: '14px', top: '13px' }} />
             </div>
+
+            {customerSearchQuery.trim() !== '' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCustomer(customerSearchQuery.trim());
+                  setShowCustomerSearchModal(false);
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '10px 16px',
+                  borderRadius: '10px',
+                  fontWeight: '900',
+                  fontSize: '0.86rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginBottom: '14px',
+                  width: '100%',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(16,185,129,0.3)'
+                }}
+              >
+                <Check size={16} />
+                <span>Gunakan Nama: &quot;{customerSearchQuery.trim()}&quot;</span>
+              </button>
+            )}
 
             {/* CUSTOMERS LIST CONTAINER */}
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
@@ -12888,32 +12976,34 @@ export default function AndroidPosRegister({
             </div>
 
             {/* Footer Summary - NO PRICE FOR KITCHEN / BAR / TABLE CHECKER TICKETS */}
+            {/* Footer Summary - NO PRICE FOR KITCHEN / BAR / TABLE CHECKER TICKETS */}
             {ticketPreviewType === 'CASHIER' ? (
               <div style={{ borderTop: '2px dashed #000', paddingTop: '8px', marginBottom: '16px', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900' }}>
-                  <span>TOTAL BILL</span>
+                  <span>TOTAL ESTIMASI TAGIHAN</span>
                   <span>{formatRupiah(ticketPreviewData.amount || cartTotal)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#333' }}>
-                  <span>Bayar / Tunai</span>
-                  <strong style={{ color: '#0284c7' }}>
-                    {formatRupiah(
-                      ticketPreviewData.paid_amount !== undefined && ticketPreviewData.paid_amount !== null ? ticketPreviewData.paid_amount :
-                      ticketPreviewData.cash_paid !== undefined && ticketPreviewData.cash_paid !== null ? ticketPreviewData.cash_paid :
-                      ticketPreviewData.tendered !== undefined && ticketPreviewData.tendered !== null ? ticketPreviewData.tendered :
-                      ticketPreviewData.amount || cartTotal
-                    )}
-                  </strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', fontWeight: '900', color: '#16a34a' }}>
-                  <span>Kembalian</span>
-                  <span>
-                    {formatRupiah(
-                      ticketPreviewData.change_amount !== undefined && ticketPreviewData.change_amount !== null ? ticketPreviewData.change_amount :
-                      ticketPreviewData.kembalian !== undefined && ticketPreviewData.kembalian !== null ? ticketPreviewData.kembalian :
-                      Math.max(0, (ticketPreviewData.paid_amount || ticketPreviewData.cash_paid || ticketPreviewData.amount || cartTotal) - (ticketPreviewData.amount || cartTotal))
-                    )}
-                  </span>
+                <div style={{
+                  fontSize: '0.70rem',
+                  fontWeight: '800',
+                  color: '#dc2626',
+                  background: '#fef2f2',
+                  border: '1.5px dashed #dc2626',
+                  padding: '8px',
+                  borderRadius: '6px',
+                  lineHeight: 1.35,
+                  marginTop: '6px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontWeight: '900', fontSize: '0.76rem', marginBottom: '2px' }}>*** PERINGATAN KERAS ***</div>
+                  <div>STRUK INI BUKANLAH STRUK PEMBAYARAN!</div>
+                  <div>STRUK INI HANYALAH SEBAGAI STRUK INFORMASI.</div>
+                  <div style={{ fontSize: '0.66rem', marginTop: '3px', color: '#991b1b', fontWeight: '800' }}>
+                    JIKA KASIR MEMINTA STRUK INI SEBAGAI PEMBAYARAN MAKA ANDA MENDAPATKAN 1 JUTA LANGSUNG DARI KASIR
+                  </div>
+                  <div style={{ fontSize: '0.62rem', fontStyle: 'italic', marginTop: '2px', color: '#7f1d1d' }}>
+                    (Kecuali ada kondisi tertentu misal jaringan putus dan sebagainya)
+                  </div>
                 </div>
               </div>
             ) : (
@@ -12932,10 +13022,13 @@ export default function AndroidPosRegister({
                   lineHeight: 1.35
                 }}>
                   <div style={{ fontWeight: '900', fontSize: '0.78rem', marginBottom: '2px' }}>*** PERINGATAN KERAS ***</div>
-                  <div>STRUK INI BUKAN STRUK PEMBAYARAN!</div>
-                  <div>JANGAN DIBAYAR SEBELUM DIBERI STRUK RESMI KASIR.</div>
-                  <div style={{ fontSize: '0.66rem', marginTop: '3px', color: '#991b1b' }}>
-                    Apabila kasir memberikan struk ini dan anda melakukan pembayaran, maka anda berhak mendapatkan 1 juta rupiah langsung dari kasir.
+                  <div>STRUK INI BUKANLAH STRUK PEMBAYARAN!</div>
+                  <div>STRUK INI HANYALAH SEBAGAI STRUK INFORMASI.</div>
+                  <div style={{ fontSize: '0.68rem', marginTop: '3px', color: '#991b1b', fontWeight: '800' }}>
+                    JIKA KASIR MEMINTA STRUK INI SEBAGAI PEMBAYARAN MAKA ANDA MENDAPATKAN 1 JUTA LANGSUNG DARI KASIR
+                  </div>
+                  <div style={{ fontSize: '0.64rem', fontStyle: 'italic', marginTop: '2px', color: '#7f1d1d' }}>
+                    (Kecuali ada kondisi tertentu misal jaringan putus dan sebagainya)
                   </div>
                 </div>
               </div>
