@@ -10585,7 +10585,7 @@ export default function AndroidPosRegister({
                   <Printer size={16} />
                   <span>Cetak Struk</span>
                 </button>
-                <button onClick={() => setShowReceiptModal(false)} className="btn-emerald" style={{ flex: 1, justifyContent: 'center', height: '42px', fontSize: '0.82rem' }}>
+                <button onClick={() => { handleClearCart(); setShowReceiptModal(false); }} className="btn-emerald" style={{ flex: 1, justifyContent: 'center', height: '42px', fontSize: '0.82rem' }}>
                   <span>OK / SELESAI</span>
                 </button>
               </div>
