@@ -442,7 +442,7 @@ export default function AndroidPosRegister({
     } catch (e) {}
   }, [cart]);
 
-  const [orderType, setOrderType] = useState(''); // 'Dine In' | 'Take Away' (Wajib dipilih)
+  const [orderType, setOrderType] = useState('Dine In'); // 'Dine In' | 'Take Away'
   const [selectedCustomer, setSelectedCustomer] = useState(''); // Wajib diisi nama pelanggan
   const [lastCompletedTx, setLastCompletedTx] = useState(null);
   const [activeSuggestRowId, setActiveSuggestRowId] = useState(null);
@@ -2465,7 +2465,7 @@ export default function AndroidPosRegister({
       localStorage.removeItem('MRIS_POS_ACTIVE_CART');
     } catch (e) {}
     setSelectedCustomer('');
-    setOrderType('');
+    setOrderType('Dine In');
     // Reset meja ke meja pertama yang kosong/available
     setTableStatusMap(currentMap => {
       const firstAvailable = tables.find(t => !currentMap[t.id] || currentMap[t.id]?.status !== 'occupied');
@@ -2532,7 +2532,7 @@ export default function AndroidPosRegister({
     if (cart.length === 0 && (!openedOriginalCart || openedOriginalCart.length === 0)) return;
 
     // 1. VALIDASI WAJIB NAMA PELANGGAN
-    if (!selectedCustomer || selectedCustomer.trim() === '' || selectedCustomer.trim().toLowerCase() === 'pelanggan umum') {
+    if (!selectedCustomer || selectedCustomer.trim() === '') {
       alert('⚠️ PESANAN GAGAL DISIMPAN:\n\nMohon isi Nama Pelanggan terlebih dahulu sebelum menyimpan pesanan.');
       setShowCustomerSearchModal(true);
       return;
@@ -2676,7 +2676,7 @@ export default function AndroidPosRegister({
   // GENERATE CONTOH TAGIHAN SEMENTARA (MASUK PESANAN GANTUNG & CETAK CONTOH TAGIHAN)
   const handleGenerateContohTagihan = () => {
     // Validasi Wajib Nama Pelanggan & Jenis Transaksi
-    if (!selectedCustomer || selectedCustomer.trim() === '' || selectedCustomer.trim().toLowerCase() === 'pelanggan umum') {
+    if (!selectedCustomer || selectedCustomer.trim() === '') {
       alert('⚠️ GAGAL MENCETAK CONTOH TAGIHAN:\n\nMohon isi Nama Pelanggan terlebih dahulu.');
       setShowCustomerSearchModal(true);
       return;
@@ -5278,38 +5278,65 @@ export default function AndroidPosRegister({
                       </button>
                     )}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <button
-                      onClick={() => {
-                        setCustomerSearchQuery('');
-                        setShowCustomerSearchModal(true);
-                      }}
-                      style={{
-                        background: (!selectedCustomer || selectedCustomer.trim() === '' || selectedCustomer.trim().toLowerCase() === 'pelanggan umum') ? 'rgba(239, 68, 68, 0.15)' : 'rgba(37, 99, 235, 0.12)',
-                        border: `1.5px solid ${(!selectedCustomer || selectedCustomer.trim() === '' || selectedCustomer.trim().toLowerCase() === 'pelanggan umum') ? '#ef4444' : '#2563eb'}`,
-                        color: (!selectedCustomer || selectedCustomer.trim() === '' || selectedCustomer.trim().toLowerCase() === 'pelanggan umum') ? '#ef4444' : (isLight ? '#1d4ed8' : '#60a5fa'),
-                        fontSize: '0.80rem',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '4px 10px',
-                        borderRadius: '8px'
-                      }}
-                      title="Klik untuk mengisi nama pelanggan (Wajib)"
-                    >
-                      <User size={14} />
-                      <span>{selectedCustomer && selectedCustomer.trim().toLowerCase() !== 'pelanggan umum' ? selectedCustomer : '⚠️ Wajib Isi Nama Pelanggan'}</span>
-                    </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      background: T.bgCard,
+                      border: `1.5px solid ${(!selectedCustomer || selectedCustomer.trim() === '') ? '#ef4444' : '#3b82f6'}`,
+                      borderRadius: '8px',
+                      padding: '2px 8px'
+                    }}>
+                      <User size={14} color={(!selectedCustomer || selectedCustomer.trim() === '') ? '#ef4444' : '#3b82f6'} />
+                      <input
+                        type="text"
+                        value={selectedCustomer}
+                        onChange={(e) => setSelectedCustomer(e.target.value)}
+                        placeholder="Nama Pelanggan (Wajib)"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          outline: 'none',
+                          color: T.txtPrimary,
+                          fontSize: '0.80rem',
+                          fontWeight: '700',
+                          width: '140px'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomerSearchQuery(selectedCustomer || '');
+                          setShowCustomerSearchModal(true);
+                        }}
+                        style={{
+                          background: 'rgba(59, 130, 246, 0.15)',
+                          border: 'none',
+                          borderRadius: '4px',
+                          color: '#3b82f6',
+                          padding: '3px 6px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          fontSize: '0.72rem',
+                          fontWeight: '800'
+                        }}
+                        title="Cari atau pilih dari daftar pelanggan"
+                      >
+                        <Search size={12} />
+                        <span>Pilih</span>
+                      </button>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setShowQrSelfRegModal(true)}
                       title="Tampilkan QR Code Registrasi Mandiri Pelanggan"
-                      style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none', color: '#ffffff', padding: '4px 10px', borderRadius: '8px', fontSize: '0.74rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 2px 6px rgba(99,102,241,0.4)' }}
+                      style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none', color: '#ffffff', padding: '5px 8px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', boxShadow: '0 2px 6px rgba(99,102,241,0.4)', whiteSpace: 'nowrap' }}
                     >
                       <QrCode size={13} />
-                      <span>QR Member</span>
+                      <span>QR</span>
                     </button>
                   </div>
                 </div>
@@ -5860,7 +5887,7 @@ export default function AndroidPosRegister({
                       disabled={cart.length === 0}
                       onClick={() => {
                         if (cart.length > 0) {
-                          if (!selectedCustomer || selectedCustomer.trim() === '' || selectedCustomer.trim().toLowerCase() === 'pelanggan umum') {
+                          if (!selectedCustomer || selectedCustomer.trim() === '') {
                             alert('⚠️ PROSES BAYAR GAGAL:\n\nMohon isi Nama Pelanggan terlebih dahulu sebelum melanjutkan pembayaran.');
                             setShowCustomerSearchModal(true);
                             return;
