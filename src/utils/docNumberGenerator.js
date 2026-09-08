@@ -56,15 +56,31 @@ export const getNextDailySequence = ({
   date = new Date(),
   existingRecords = []
 }) => {
-  const d = date instanceof Date ? date : new Date(date);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const dateKey = `${yyyy}${mm}${dd}`;
+  let dateKey = '';
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date)) {
+    dateKey = date.substring(0, 10).replace(/-/g, '');
+  } else {
+    const d = date instanceof Date ? date : new Date(date);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    dateKey = `${yyyy}${mm}${dd}`;
+  }
 
   const matchPrefix = `${prefix}-${outletCode}-${dateKey}-`.toUpperCase();
 
   let maxSeq = 0;
+
+  // 1. Cek dari localStorage sequence tracker (agar offline / saat data lambat load tidak duplikat)
+  const storageKey = `MRIS_LAST_SEQ_${prefix}_${outletCode}_${dateKey}`;
+  try {
+    const savedSeq = parseInt(localStorage.getItem(storageKey), 10);
+    if (!isNaN(savedSeq) && savedSeq > maxSeq) {
+      maxSeq = savedSeq;
+    }
+  } catch (e) {}
+
+  // 2. Cek dari existingRecords
   if (Array.isArray(existingRecords)) {
     existingRecords.forEach(rec => {
       const code = String(rec.id || rec.receipt_no || rec.receiptNo || rec.report_no || rec.code || '').toUpperCase();
@@ -79,7 +95,33 @@ export const getNextDailySequence = ({
     });
   }
 
-  return maxSeq + 1;
+  // 3. Cek juga dari antrean offline lokal POS
+  try {
+    const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+    const q = qRaw ? JSON.parse(qRaw) : [];
+    if (Array.isArray(q)) {
+      q.forEach(rec => {
+        const code = String(rec.id || rec.receipt_no || rec.receiptNo || '').toUpperCase();
+        if (code.startsWith(matchPrefix)) {
+          const parts = code.split('-');
+          const lastPart = parts[parts.length - 1];
+          const num = parseInt(lastPart, 10);
+          if (!isNaN(num) && num > maxSeq) {
+            maxSeq = num;
+          }
+        }
+      });
+    }
+  } catch (e) {}
+
+  const nextSeq = maxSeq + 1;
+
+  // Simpan sequence terbaru ke localStorage agar panggilan berikutnya tidak pernah menghasilkan nomor yang sama
+  try {
+    localStorage.setItem(storageKey, String(nextSeq));
+  } catch (e) {}
+
+  return nextSeq;
 };
 
 /**
@@ -92,10 +134,17 @@ export const formatDocNumber = ({
   seq = 1,
   digits = 5
 }) => {
-  const d = date instanceof Date ? date : new Date(date);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
+  let yyyy, mm, dd;
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date)) {
+    yyyy = date.substring(0, 4);
+    mm = date.substring(5, 7);
+    dd = date.substring(8, 10);
+  } else {
+    const d = date instanceof Date ? date : new Date(date);
+    yyyy = d.getFullYear();
+    mm = String(d.getMonth() + 1).padStart(2, '0');
+    dd = String(d.getDate()).padStart(2, '0');
+  }
 
   if (prefix === 'TAX') {
     const seqStr = String(seq).padStart(2, '0');

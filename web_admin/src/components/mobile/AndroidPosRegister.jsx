@@ -3645,9 +3645,16 @@ export default function AndroidPosRegister({
     }).format(new Date());
     const currentDate = isSuperAdminUser && customTxDate ? customTxDate : todayJakarta;
 
+    let offlineQ = [];
+    try {
+      const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+      if (qRaw) offlineQ = JSON.parse(qRaw);
+    } catch (e) {}
+
     const allKnownTxs = [
       ...(masterData?.salesTransactions || []),
-      ...(masterData?.transactions || [])
+      ...(masterData?.transactions || []),
+      ...(Array.isArray(offlineQ) ? offlineQ : [])
     ];
     const receiptNo = generateDocNumber({
       prefix: 'TRX',
