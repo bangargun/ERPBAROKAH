@@ -15,6 +15,7 @@ import {
   CreditCard, 
   CheckCircle2, 
   CheckCircle,
+  Check,
   Trash2, 
   Plus, 
   Minus, 
