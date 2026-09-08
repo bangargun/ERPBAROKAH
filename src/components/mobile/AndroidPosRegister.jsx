@@ -2602,8 +2602,8 @@ export default function AndroidPosRegister({
   const handleHoldTableOrder = () => {
     if (cart.length === 0 && (!openedOriginalCart || openedOriginalCart.length === 0)) return;
 
-    // 1. VALIDASI & DEFAULT NAMA PELANGGAN (Dine In otomatis Pelanggan Umum jika kosong)
-    const effectiveCustomer = (selectedCustomer || '').trim() || 'Pelanggan Umum';
+    // 1. VALIDASI & DEFAULT NAMA PELANGGAN (Dine In & Take Away otomatis Pelanggan Utama jika kosong)
+    const effectiveCustomer = (selectedCustomer || '').trim() || 'Pelanggan Utama';
 
     // 2. VALIDASI JENIS TRANSAKSI (Default Dine In jika kosong)
     const activeOrderType = orderType === 'Take Away' ? 'Take Away' : 'Dine In';
@@ -2746,7 +2746,7 @@ export default function AndroidPosRegister({
     // 1. Tentukan items yang akan dijadikan bill
     let effectiveItems = [...cart];
     let effectiveTotal = cartTotal;
-    let effectiveCustomer = (selectedCustomer || '').trim() || 'Pelanggan Umum';
+    let effectiveCustomer = (selectedCustomer || '').trim() || 'Pelanggan Utama';
 
     if (effectiveItems.length === 0 && isDineIn && selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) {
       effectiveItems = [...tableStatusMap[selectedTableId].pendingOrder.items];
@@ -3502,7 +3502,7 @@ export default function AndroidPosRegister({
     setCart([...table.pendingOrder.items]);
     setOpenedOriginalCart(JSON.parse(JSON.stringify(table.pendingOrder.items))); // Store original items snapshot
     setActiveRecallOrderId(table.pendingOrder.holdTx?.id || `HOLD-${table.id}`);
-    setSelectedCustomer(table.pendingOrder.customerName || 'Pelanggan Umum');
+    setSelectedCustomer(table.pendingOrder.customerName || 'Pelanggan Utama');
     setSelectedTableId(table.id);
     setOrderType('Dine In');
     setShowTableMapModal(false);
@@ -3514,7 +3514,7 @@ export default function AndroidPosRegister({
     setCart([...row.items]);
     setOpenedOriginalCart(JSON.parse(JSON.stringify(row.items)));
     setActiveRecallOrderId(row.orderId || row.heldOrderId || row.receiptNo);
-    setSelectedCustomer(row.customerName || 'Pelanggan Umum');
+    setSelectedCustomer(row.customerName || 'Pelanggan Utama');
 
     const isTakeAway = (row.orderType && String(row.orderType).toLowerCase().includes('take')) ||
                        (row.order_type && String(row.order_type).toLowerCase().includes('take')) ||
@@ -3543,7 +3543,7 @@ export default function AndroidPosRegister({
     if (!row) return;
 
     const targetId = row.orderId || row.heldOrderId || row.receiptNo;
-    const custName = row.customerName || 'Pelanggan Umum';
+    const custName = row.customerName || 'Pelanggan Utama';
 
     if (window.confirm(`Apakah Anda yakin ingin menghapus / membatalkan pesanan gantung ${row.receiptNo} (${custName})?`)) {
       if (row.tableId) {
@@ -3619,7 +3619,7 @@ export default function AndroidPosRegister({
     const paidOverallSummaryDiscount = overallSummaryDiscount;
     const paidDiscountAmount = discountAmount;
     const paidCartTotal = cartTotal;
-    const paidSelectedCustomer = (selectedCustomer || '').trim() || 'Pelanggan Umum';
+    const paidSelectedCustomer = (selectedCustomer || '').trim() || 'Pelanggan Utama';
     const paidOrderType = orderType === 'Take Away' ? 'Take Away' : (orderType || 'Dine In');
     const isTakeAway = paidOrderType === 'Take Away';
     const paidSelectedTableId = isTakeAway ? null : selectedTableId;
@@ -3687,7 +3687,7 @@ export default function AndroidPosRegister({
       branch_id: Number(currentOutlet.id),
       outlet: currentOutlet.name,
       branch_name: currentOutlet.name,
-      customer_name: isOnlineDelivery && paidSelectedCustomer === 'Pelanggan Umum' ? `Pelanggan ${methodName}` : paidSelectedCustomer,
+      customer_name: isOnlineDelivery && (paidSelectedCustomer === 'Pelanggan Utama' || paidSelectedCustomer === 'Pelanggan Umum') ? `Pelanggan ${methodName}` : paidSelectedCustomer,
       order_type: isOnlineDelivery ? 'Online Delivery' : paidOrderType,
       type: 'income',
       category: finalCategory,
@@ -3721,8 +3721,8 @@ export default function AndroidPosRegister({
     setOnlineOrderId('');
 
     // Auto-save new customer into Web Master Data (masterData.customers) if not registered yet
-    const rawCustomerName = (paidSelectedCustomer || 'Pelanggan Umum').trim();
-    const finalCustomerName = rawCustomerName === '' ? 'Pelanggan Umum' : rawCustomerName;
+    const rawCustomerName = (paidSelectedCustomer || 'Pelanggan Utama').trim();
+    const finalCustomerName = (rawCustomerName === '' || rawCustomerName.toLowerCase() === 'pelanggan umum') ? 'Pelanggan Utama' : rawCustomerName;
     const finalTotalAmount = paidCartTotal;
 
     const pointRatio = masterData?.loyaltyPointRatio || 100000;
@@ -3731,7 +3731,7 @@ export default function AndroidPosRegister({
 
     let updatedCustomersList = masterData?.customers || [];
 
-    if (finalCustomerName !== 'Pelanggan Umum') {
+    if (finalCustomerName !== 'Pelanggan Utama' && finalCustomerName !== 'Pelanggan Umum') {
       const existingIdx = updatedCustomersList.findIndex(c => c.name?.toLowerCase() === finalCustomerName.toLowerCase());
       const posOutletId = currentOutlet?.id || 'ALL';
       const posOutletName = currentOutlet?.name || 'Cabang POS';
@@ -5376,7 +5376,7 @@ export default function AndroidPosRegister({
                         type="text"
                         value={selectedCustomer}
                         onChange={(e) => setSelectedCustomer(e.target.value)}
-                        placeholder="Nama Pelanggan (Pelanggan Umum)"
+                        placeholder="Nama Pelanggan (Pelanggan Utama)"
                         style={{
                           background: 'transparent',
                           border: 'none',
@@ -5971,7 +5971,7 @@ export default function AndroidPosRegister({
                       onClick={() => {
                         if (cart.length > 0) {
                           if (!selectedCustomer || selectedCustomer.trim() === '') {
-                            setSelectedCustomer('Pelanggan Umum');
+                            setSelectedCustomer('Pelanggan Utama');
                           }
                           if (!orderType || (orderType !== 'Dine In' && orderType !== 'Take Away')) {
                             setOrderType('Dine In');
@@ -11088,16 +11088,16 @@ export default function AndroidPosRegister({
             {/* CUSTOMERS LIST CONTAINER */}
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
               
-              {/* DEFAULT OPTION: PELANGGAN UMUM */}
+              {/* DEFAULT OPTION: PELANGGAN UTAMA */}
               <div
                 onClick={() => {
-                  setSelectedCustomer('Pelanggan Umum');
+                  setSelectedCustomer('Pelanggan Utama');
                   setShowCustomerSearchModal(false);
                 }}
                 style={{
-                  background: selectedCustomer === 'Pelanggan Umum' ? 'rgba(56,189,248,0.15)' : 'var(--pos-bg-app)',
+                  background: (selectedCustomer === 'Pelanggan Utama' || selectedCustomer === 'Pelanggan Umum') ? 'rgba(56,189,248,0.15)' : 'var(--pos-bg-app)',
                   border: '1px solid',
-                  borderColor: selectedCustomer === 'Pelanggan Umum' ? '#38bdf8' : 'var(--pos-border-card)',
+                  borderColor: (selectedCustomer === 'Pelanggan Utama' || selectedCustomer === 'Pelanggan Umum') ? '#38bdf8' : 'var(--pos-border-card)',
                   padding: '12px 14px',
                   borderRadius: '12px',
                   display: 'flex',
@@ -11111,7 +11111,7 @@ export default function AndroidPosRegister({
                     <User size={20} color="#94a3b8" />
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>Pelanggan Umum (Guest)</div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>Pelanggan Utama (Default / Guest)</div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)' }}>Kategori: Tamu / Tanpa Registrasi</div>
                   </div>
                 </div>

@@ -110,8 +110,8 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
                      tx.order_type === 'Take Away';
 
   const orderTypeLabel = isTakeAway ? 'TAKE AWAY / BUNGKUS' : 'DINE IN';
-  const tableDisplay = isTakeAway ? 'TAKE AWAY' : (tx.table_number || 'Meja 01');
-  const custName = (tx.customer_name || tx.customerName || tx.customer || tx.nama_pelanggan || tx.pelanggan || 'Pelanggan Umum');
+  const rawCust = (tx.customer_name || tx.customerName || tx.customer || tx.nama_pelanggan || tx.pelanggan || '').trim();
+  const custName = (!rawCust || rawCust.toLowerCase() === 'pelanggan umum') ? 'Pelanggan Utama' : rawCust;
 
   const appendInformationalReceiptNotice = (targetLines) => {
     targetLines.push('[DIV]');
