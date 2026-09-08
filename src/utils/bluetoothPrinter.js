@@ -104,8 +104,10 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
 
   const isTakeAway = (tx.order_type && String(tx.order_type).toLowerCase().includes('take')) ||
                      (tx.order_type && String(tx.order_type).toLowerCase().includes('bungkus')) ||
-                     tx.table_number === 'Take Away' ||
-                     tx.table_number === 'Bungkus';
+                     (tx.table_number && String(tx.table_number).toLowerCase().includes('take')) ||
+                     (tx.table_number && String(tx.table_number).toLowerCase().includes('bungkus')) ||
+                     tx.table_number === 'N/A' ||
+                     tx.order_type === 'Take Away';
 
   const orderTypeLabel = isTakeAway ? 'TAKE AWAY / BUNGKUS' : 'DINE IN';
   const tableDisplay = isTakeAway ? 'TAKE AWAY' : (tx.table_number || 'Meja 01');

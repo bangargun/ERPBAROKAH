@@ -572,12 +572,19 @@ export default function App() {
               return Array.from(map.values());
             };
 
-            // salesTransactions: SERVER IS THE ONLY SOURCE OF TRUTH.
-            const mergeServerOnly = (serverList = []) => {
+            // salesTransactions: gabungkan data server dengan transaksi lokal baru/pending agar tidak hilang seketika saat polling
+            const mergeSalesWithLocal = (prevList = [], serverList = []) => {
               const map = new Map();
               (serverList || []).forEach(item => {
                 const k = getItemKey(item);
                 if (k && !deletedSet.has(k)) map.set(k, item);
+              });
+              // Pertahankan transaksi lokal baru (TRX-...) yang belum sempat tercermin di respon server
+              (prevList || []).forEach(item => {
+                const k = getItemKey(item);
+                if (k && !deletedSet.has(k) && !map.has(k)) {
+                  map.set(k, item);
+                }
               });
               return Array.from(map.values());
             };
@@ -586,9 +593,10 @@ export default function App() {
             const serverFinance = getCombinedArray(serverData.approvedFinanceDaily, serverData.manualEntryRecords);
             const mergedApprovedFinance = mergeReportsById(prevFinance, serverFinance);
 
-            // salesTransactions: gunakan mergeServerOnly — server adalah satu-satunya sumber kebenaran
+            // salesTransactions: gabungkan server + transaksi lokal kasir
             const serverSales = getCombinedArray(serverData.salesTransactions, serverData.transactions);
-            const rawMergedSalesTx = mergeServerOnly(serverSales);
+            const prevSales = getCombinedArray(prev.salesTransactions, prev.transactions);
+            const rawMergedSalesTx = mergeSalesWithLocal(prevSales, serverSales);
             const mergedSalesTx = rawMergedSalesTx.map(t => {
               if (!t || typeof t !== 'object') return t;
               const sub = Number(t.subtotal || 0);

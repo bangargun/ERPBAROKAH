@@ -2205,7 +2205,24 @@ export default function AndroidPosRegister({
       return rNo.startsWith('UPD-') || src.includes('Excel') || src.includes('Update Laporan') || notes.includes('Update Laporan');
     };
 
-    const txList = (masterData?.salesTransactions || masterData?.transactions || []).filter(t => {
+    // Gabungkan salesTransactions dan transactions dengan deduplikasi id/receipt_no
+    const rawSales = [
+      ...(masterData?.salesTransactions || []),
+      ...(masterData?.transactions || [])
+    ];
+    const seenTxKeys = new Set();
+    const uniqueSales = [];
+    for (const t of rawSales) {
+      if (!t) continue;
+      const key = String(t.id || t.receipt_no || t.receiptNo || '');
+      if (key) {
+        if (seenTxKeys.has(key)) continue;
+        seenTxKeys.add(key);
+      }
+      uniqueSales.push(t);
+    }
+
+    const cleanList = uniqueSales.filter(t => {
       if (!t) return false;
       if (isUpdateLaporanRecord(t)) return false;
       const tid = String(t.id !== undefined && t.id !== null ? t.id : '');
@@ -2215,17 +2232,19 @@ export default function AndroidPosRegister({
       return true;
     });
 
-    return txList.filter(t => {
-      if (!selectedBranch || selectedBranch === 'ALL') return true;
-      if (typeof selectedBranch === 'number' || (!isNaN(Number(selectedBranch)) && Number(selectedBranch) > 0)) {
-        const bId = Number(selectedBranch);
+    return cleanList.filter(t => {
+      const targetOutletId = currentOutlet?.id || selectedBranch;
+      if (!targetOutletId || targetOutletId === 'ALL') return true;
+      const bId = Number(targetOutletId);
+      if (!isNaN(bId) && bId > 0) {
         return Number(t.outlet_id) === bId || Number(t.branch_id) === bId;
       }
       return (
-        t.branch_name === selectedBranch ||
-        t.outlet === selectedBranch ||
-        t.outlet_name === selectedBranch ||
-        (currentOutlet && (Number(t.outlet_id) === Number(currentOutlet.id) || Number(t.branch_id) === Number(currentOutlet.id)))
+        String(t.outlet_id) === String(targetOutletId) ||
+        String(t.branch_id) === String(targetOutletId) ||
+        t.branch_name === targetOutletId ||
+        t.outlet === targetOutletId ||
+        t.outlet_name === targetOutletId
       );
     });
   }, [masterData?.salesTransactions, masterData?.transactions, masterData?.deletedSalesIds, masterData?.deletedLogisticsIds, selectedBranch, currentOutlet?.id]);
@@ -2273,16 +2292,67 @@ export default function AndroidPosRegister({
     }).format(d);
   }, []);
 
-  // ─── FILTERED RIWAYAT TRANSACTIONS (default: hari ini) ───────────────────────
+  // ─── FILTERED RIWAYAT TRANSACTIONS (Termasuk Antrean Lokal / Offline Queue) ───
   const filteredRiwayatTransactions = useMemo(() => {
-    return outletTransactions.filter(tx => {
+    let offlineTxs = [];
+    try {
+      const q = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+      if (q) offlineTxs = JSON.parse(q);
+    } catch (e) {}
+
+    const seenKeys = new Set();
+    const combined = [];
+
+    // 1. Masukkan outletTransactions dari masterData
+    (outletTransactions || []).forEach(tx => {
+      if (!tx) return;
+      const key = String(tx.id || tx.receipt_no || tx.receiptNo || '');
+      if (key) seenKeys.add(key);
+      combined.push(tx);
+    });
+
+    // 2. Gabungkan antrean lokal offline yang belum masuk ke outletTransactions
+    (Array.isArray(offlineTxs) ? offlineTxs : []).forEach(tx => {
+      if (!tx) return;
+      const key = String(tx.id || tx.receipt_no || tx.receiptNo || '');
+      if (key && seenKeys.has(key)) return;
+      const targetOutletId = currentOutlet?.id || selectedBranch;
+      if (targetOutletId && targetOutletId !== 'ALL') {
+        const bId = Number(targetOutletId);
+        const txOutletId = Number(tx.outlet_id || tx.branch_id);
+        if (!isNaN(bId) && bId > 0 && !isNaN(txOutletId) && txOutletId > 0 && txOutletId !== bId) {
+          return;
+        }
+      }
+      if (key) seenKeys.add(key);
+      combined.unshift(tx);
+    });
+
+    const todayJakarta = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date());
+    const utcTodayStr = new Date().toISOString().split('T')[0];
+
+    return combined.filter(tx => {
       const d = sharedGetTxDateStr(tx);
       if (!d) return false;
-      if (riwayatFilterMode === 'today')     return d === sharedTodayStr;
-      if (riwayatFilterMode === 'yesterday') return d === sharedYesterdayStr;
+      if (riwayatFilterMode === 'today') {
+        return d === todayJakarta || d === utcTodayStr || d === sharedTodayStr;
+      }
+      if (riwayatFilterMode === 'yesterday') {
+        return d === sharedYesterdayStr;
+      }
       return d >= riwayatCustomStart && d <= riwayatCustomEnd;
+    }).sort((a, b) => {
+      const dateA = sharedGetTxDateStr(a);
+      const dateB = sharedGetTxDateStr(b);
+      if (dateA !== dateB) return dateB.localeCompare(dateA);
+      const timeA = String(a.time || '00:00:00');
+      const timeB = String(b.time || '00:00:00');
+      return timeB.localeCompare(timeA);
     });
-  }, [outletTransactions, riwayatFilterMode, riwayatCustomStart, riwayatCustomEnd]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [outletTransactions, currentOutlet?.id, selectedBranch, offlineQueueCount, riwayatFilterMode, riwayatCustomStart, riwayatCustomEnd, sharedTodayStr, sharedYesterdayStr]);
 
   // ─── HELPER: Hitung penjualan cash & non-cash untuk tanggal tertentu ───────────
   const getSalesForDate = useCallback((dateStr) => {
@@ -2532,23 +2602,15 @@ export default function AndroidPosRegister({
   const handleHoldTableOrder = () => {
     if (cart.length === 0 && (!openedOriginalCart || openedOriginalCart.length === 0)) return;
 
-    // 1. VALIDASI WAJIB NAMA PELANGGAN
-    if (!selectedCustomer || selectedCustomer.trim() === '') {
-      alert('⚠️ PESANAN GAGAL DISIMPAN:\n\nMohon isi Nama Pelanggan terlebih dahulu sebelum menyimpan pesanan.');
-      setShowCustomerSearchModal(true);
-      return;
-    }
+    // 1. VALIDASI & DEFAULT NAMA PELANGGAN (Dine In otomatis Pelanggan Umum jika kosong)
+    const effectiveCustomer = (selectedCustomer || '').trim() || 'Pelanggan Umum';
 
-    // 2. VALIDASI WAJIB JENIS TRANSAKSI (Dine In atau Take Away)
-    if (!orderType || (orderType !== 'Dine In' && orderType !== 'Take Away')) {
-      alert('⚠️ PESANAN GAGAL DISIMPAN:\n\nMohon pilih Jenis Transaksi (Dine In atau Take Away) terlebih dahulu sebelum menyimpan pesanan.');
-      return;
-    }
-
-    const isDineIn = orderType === 'Dine In' && selectedTableId;
+    // 2. VALIDASI JENIS TRANSAKSI (Default Dine In jika kosong)
+    const activeOrderType = orderType === 'Take Away' ? 'Take Away' : 'Dine In';
+    const isDineIn = activeOrderType === 'Dine In';
 
     // CEGAH PENIMPAAN MEJA YANG SUDAH TERISI (OCCUPIED TABLE PROTECTION)
-    if (isDineIn && !activeRecallOrderId) {
+    if (isDineIn && selectedTableId && !activeRecallOrderId) {
       const existingOccupied = tables.find(t => t.id === selectedTableId);
       if (existingOccupied && existingOccupied.status === 'occupied' && existingOccupied.pendingOrder && existingOccupied.pendingOrder.items?.length > 0) {
         setOccupiedTableNotice({ table: existingOccupied, pendingOrder: existingOccupied.pendingOrder });
@@ -2556,7 +2618,8 @@ export default function AndroidPosRegister({
       }
     }
 
-    const tblNum = isDineIn ? (selectedTableObj?.number || (selectedTableId ? `Meja ${selectedTableId}` : 'Meja 01')) : 'N/A (Take Away)';
+    const tblNum = isDineIn ? (selectedTableObj?.number || (selectedTableId ? `Meja ${selectedTableId}` : 'Meja 01')) : 'Take Away';
+    const effectiveTableId = isDineIn ? (selectedTableId || null) : null;
     const _now2040 = new Date();
     const currentTime = `${String(_now2040.getHours()).padStart(2,'0')}:${String(_now2040.getMinutes()).padStart(2,'0')}:${String(_now2040.getSeconds()).padStart(2,'0')}`;
     const currentDate = new Date().toISOString().split('T')[0];
@@ -2572,19 +2635,19 @@ export default function AndroidPosRegister({
       time: currentTime,
       outlet_id: currentOutlet.id,
       branch_name: currentOutlet.name,
-      customer_name: selectedCustomer || 'Pelanggan Umum',
-      order_type: `${orderType} (Pesanan Gantung)`,
+      customer_name: effectiveCustomer,
+      order_type: activeOrderType,
       table_number: tblNum,
-      table_id: selectedTableId || null,
+      table_id: effectiveTableId,
       items: finalPrintItems,
       amount: cartTotal,
       payment_method: 'Pesanan Gantung (Belum Dibayar)',
       cashier: currentUserSession?.name || 'Kasir Mobile',
-      notes: `Pesanan Gantung ${tblNum}`,
+      notes: isDineIn ? `Pesanan Meja ${tblNum}` : 'Pesanan Take Away',
       status: 'Belum Dibayar'
     };
 
-    if (isDineIn) {
+    if (isDineIn && selectedTableId) {
       setTableStatusMap(prev => ({
         ...prev,
         [selectedTableId]: {
@@ -2592,7 +2655,7 @@ export default function AndroidPosRegister({
           pendingOrder: {
             items: [...cart],
             totalAmount: cartTotal,
-            customerName: selectedCustomer || 'Pelanggan Umum',
+            customerName: effectiveCustomer,
             startTime: currentTime,
             holdTx: holdTx
           }
@@ -2608,8 +2671,8 @@ export default function AndroidPosRegister({
           outlet_id: Number(currentOutlet.id),
           table_id: selectedTableId,
           table_number: tblNum,
-          customer_name: selectedCustomer || 'Pelanggan Umum',
-          order_type: orderType,
+          customer_name: effectiveCustomer,
+          order_type: 'Dine In',
           waiter_name: currentUserSession?.name || 'Kasir',
           items: cart,
           total_amount: cartTotal,
@@ -2625,8 +2688,8 @@ export default function AndroidPosRegister({
           id: holdId,
           outlet_id: Number(currentOutlet.id),
           table_id: holdId,
-          table_number: tblNum,
-          customer_name: selectedCustomer || 'Pelanggan Umum',
+          table_number: 'Take Away',
+          customer_name: effectiveCustomer,
           order_type: 'Take Away',
           waiter_name: currentUserSession?.name || 'Kasir',
           items: cart,
@@ -2645,12 +2708,13 @@ export default function AndroidPosRegister({
           id: holdId,
           date: currentDate,
           time: currentTime,
-          customerName: selectedCustomer || 'Pelanggan Umum',
-          customer_name: selectedCustomer || 'Pelanggan Umum',
-          order_type: orderType,
+          customerName: effectiveCustomer,
+          customer_name: effectiveCustomer,
+          order_type: activeOrderType,
+          orderType: activeOrderType,
           table_number: tblNum,
-          tableId: selectedTableId || null,
-          table_id: selectedTableId || null,
+          tableId: effectiveTableId,
+          table_id: effectiveTableId,
           items: [...cart],
           totalAmount: cartTotal,
           amount: cartTotal,
@@ -2676,23 +2740,15 @@ export default function AndroidPosRegister({
 
   // GENERATE CONTOH TAGIHAN SEMENTARA (MASUK PESANAN GANTUNG & CETAK CONTOH TAGIHAN)
   const handleGenerateContohTagihan = () => {
-    // Validasi Wajib Nama Pelanggan & Jenis Transaksi
-    if (!selectedCustomer || selectedCustomer.trim() === '') {
-      alert('⚠️ GAGAL MENCETAK CONTOH TAGIHAN:\n\nMohon isi Nama Pelanggan terlebih dahulu.');
-      setShowCustomerSearchModal(true);
-      return;
-    }
-    if (!orderType || (orderType !== 'Dine In' && orderType !== 'Take Away')) {
-      alert('⚠️ GAGAL MENCETAK CONTOH TAGIHAN:\n\nMohon pilih Jenis Transaksi (Dine In atau Take Away) terlebih dahulu.');
-      return;
-    }
+    const activeOrderType = orderType === 'Take Away' ? 'Take Away' : 'Dine In';
+    const isDineIn = activeOrderType === 'Dine In';
 
     // 1. Tentukan items yang akan dijadikan bill
     let effectiveItems = [...cart];
     let effectiveTotal = cartTotal;
-    let effectiveCustomer = selectedCustomer || 'Pelanggan Umum';
+    let effectiveCustomer = (selectedCustomer || '').trim() || 'Pelanggan Umum';
 
-    if (effectiveItems.length === 0 && selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) {
+    if (effectiveItems.length === 0 && isDineIn && selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) {
       effectiveItems = [...tableStatusMap[selectedTableId].pendingOrder.items];
       effectiveTotal = tableStatusMap[selectedTableId].pendingOrder.totalAmount || effectiveItems.reduce((acc, it) => acc + ((it.price || it.price_unit || 0) * (it.qty || 1)), 0);
       effectiveCustomer = tableStatusMap[selectedTableId].pendingOrder.customerName || effectiveCustomer;
@@ -2712,7 +2768,7 @@ export default function AndroidPosRegister({
       return;
     }
 
-    const tblNum = orderType === 'Dine In' ? (selectedTableObj?.number || (selectedTableId ? `Meja ${selectedTableId}` : 'Meja 01')) : 'N/A';
+    const tblNum = isDineIn ? (selectedTableObj?.number || (selectedTableId ? `Meja ${selectedTableId}` : 'Meja 01')) : 'Take Away';
     const _now2121 = new Date();
     const currentTime = `${String(_now2121.getHours()).padStart(2,'0')}:${String(_now2121.getMinutes()).padStart(2,'0')}:${String(_now2121.getSeconds()).padStart(2,'0')}`;
     const currentDate = new Date().toISOString().split('T')[0];
@@ -2729,19 +2785,20 @@ export default function AndroidPosRegister({
       outlet_id: currentOutlet.id,
       branch_name: currentOutlet.name,
       customer_name: effectiveCustomer,
-      order_type: `${orderType} (${tblNum})`,
+      order_type: activeOrderType,
       table_number: tblNum,
+      table_id: isDineIn ? (selectedTableId || null) : null,
       items: finalPrintItems,
       amount: effectiveTotal,
       payment_method: 'Contoh Tagihan (Belum Dibayar)',
       cashier: currentUserSession?.name || 'Kasir POS',
-      notes: `Informasi Tagihan Meja ${tblNum}`,
+      notes: isDineIn ? `Informasi Tagihan Meja ${tblNum}` : 'Informasi Tagihan Take Away',
       status: 'Belum Dibayar',
       isContohTagihan: true
     };
 
-    // Save order into active table orders (Cart / Order Gantung) if in table
-    if (selectedTableId) {
+    // Save order into active table orders (Cart / Order Gantung) ONLY if Dine In
+    if (isDineIn && selectedTableId) {
       setTableStatusMap(prev => ({
         ...prev,
         [selectedTableId]: {
@@ -3458,11 +3515,23 @@ export default function AndroidPosRegister({
     setOpenedOriginalCart(JSON.parse(JSON.stringify(row.items)));
     setActiveRecallOrderId(row.orderId || row.heldOrderId || row.receiptNo);
     setSelectedCustomer(row.customerName || 'Pelanggan Umum');
-    if (row.tableId) {
-      setSelectedTableId(row.tableId);
-      setOrderType('Dine In');
+
+    const isTakeAway = (row.orderType && String(row.orderType).toLowerCase().includes('take')) ||
+                       (row.order_type && String(row.order_type).toLowerCase().includes('take')) ||
+                       (row.tableNumber && String(row.tableNumber).toLowerCase().includes('take')) ||
+                       (row.table_number && String(row.table_number).toLowerCase().includes('take')) ||
+                       (row.tableNumber && String(row.tableNumber).toLowerCase().includes('bungkus')) ||
+                       (row.table_number && String(row.table_number).toLowerCase().includes('bungkus')) ||
+                       row.tableNumber === 'Take Away' ||
+                       row.orderType === 'Take Away' ||
+                       row.order_type === 'Take Away';
+
+    if (isTakeAway) {
+      setOrderType('Take Away');
+      setSelectedTableId(null);
     } else {
-      setOrderType(row.orderType || 'Take Away');
+      setOrderType('Dine In');
+      setSelectedTableId(row.tableId || (tables && tables.length > 0 ? tables[0].id : null));
     }
     setActiveNavTab('kasir');
     setShowTableMapModal(false);
@@ -3550,10 +3619,11 @@ export default function AndroidPosRegister({
     const paidOverallSummaryDiscount = overallSummaryDiscount;
     const paidDiscountAmount = discountAmount;
     const paidCartTotal = cartTotal;
-    const paidSelectedCustomer = selectedCustomer || 'Pelanggan Umum';
-    const paidSelectedTableId = selectedTableId;
-    const paidOrderType = orderType;
-    const paidSelectedTableObj = selectedTableObj;
+    const paidSelectedCustomer = (selectedCustomer || '').trim() || 'Pelanggan Umum';
+    const paidOrderType = orderType === 'Take Away' ? 'Take Away' : (orderType || 'Dine In');
+    const isTakeAway = paidOrderType === 'Take Away';
+    const paidSelectedTableId = isTakeAway ? null : selectedTableId;
+    const paidSelectedTableObj = isTakeAway ? null : selectedTableObj;
     const paidActiveRecallOrderId = activeRecallOrderId;
 
     // 2. OPTIMISTIC INSTANT UI RESPONSE: Tutup modal & Bersihkan cart seketika (0ms lag)
@@ -3569,7 +3639,11 @@ export default function AndroidPosRegister({
       const r = String(currentUserSession?.role || userSession?.role || '').toLowerCase();
       return r.includes('super') || r.includes('admin') || r.includes('owner');
     })();
-    const currentDate = isSuperAdminUser && customTxDate ? customTxDate : new Date().toISOString().split('T')[0];
+    const todayJakarta = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date());
+    const currentDate = isSuperAdminUser && customTxDate ? customTxDate : todayJakarta;
 
     const allKnownTxs = [
       ...(masterData?.salesTransactions || []),
@@ -3590,12 +3664,12 @@ export default function AndroidPosRegister({
     const isOnlineDelivery = ['GrabFood', 'Go-Food', 'ShopeeFood', 'Maxim Food'].includes(methodName);
     const finalCategory = isOnlineDelivery 
       ? `Penjualan Online Delivery (${methodName})`
-      : (paidOrderType === 'Dine In' ? 'Penjualan Dine-in' : 'Penjualan Takeaway / Online');
+      : (isTakeAway ? 'Penjualan Takeaway / Online' : 'Penjualan Dine-in');
 
     const onlineNoteSuffix = onlineOrderId.trim() ? ` [Kode: ${onlineOrderId.trim()}]` : '';
     const finalNotes = isOnlineDelivery
       ? `Online Delivery (${methodName})${onlineNoteSuffix}`
-      : `${paidOrderType} (${paidOrderType === 'Dine In' ? (paidSelectedTableObj?.number || 'Dine In') : 'Take Away'}) - Pembayaran ${methodName}`;
+      : `${paidOrderType} (${isTakeAway ? 'Take Away' : (paidSelectedTableObj?.number || 'Meja 01')}) - Pembayaran ${methodName}`;
 
     const newTx = {
       id: receiptNo,
@@ -3610,7 +3684,8 @@ export default function AndroidPosRegister({
       order_type: isOnlineDelivery ? 'Online Delivery' : paidOrderType,
       type: 'income',
       category: finalCategory,
-      table_number: isOnlineDelivery ? `Online (${methodName})` : (paidOrderType === 'Dine In' ? (paidSelectedTableObj?.number || (paidSelectedTableId ? `Meja ${paidSelectedTableId}` : 'Meja 01')) : 'N/A (Take Away)'),
+      table_number: isOnlineDelivery ? `Online (${methodName})` : (isTakeAway ? 'Take Away' : (paidSelectedTableObj?.number || (paidSelectedTableId ? `Meja ${paidSelectedTableId}` : 'Meja 01'))),
+      table_id: isTakeAway ? null : (paidSelectedTableId || null),
       items: paidCart.map(item => ({
         name: item.name,
         qty: item.qty,
@@ -5285,16 +5360,16 @@ export default function AndroidPosRegister({
                       alignItems: 'center',
                       gap: '4px',
                       background: T.bgCard,
-                      border: `1.5px solid ${(!selectedCustomer || selectedCustomer.trim() === '') ? '#ef4444' : '#3b82f6'}`,
+                      border: `1.5px solid ${selectedCustomer ? '#3b82f6' : T.borderSubtle}`,
                       borderRadius: '8px',
                       padding: '2px 8px'
                     }}>
-                      <User size={14} color={(!selectedCustomer || selectedCustomer.trim() === '') ? '#ef4444' : '#3b82f6'} />
+                      <User size={14} color={selectedCustomer ? '#3b82f6' : T.txtMuted} />
                       <input
                         type="text"
                         value={selectedCustomer}
                         onChange={(e) => setSelectedCustomer(e.target.value)}
-                        placeholder="Nama Pelanggan (Wajib)"
+                        placeholder="Nama Pelanggan (Pelanggan Umum)"
                         style={{
                           background: 'transparent',
                           border: 'none',
@@ -5889,13 +5964,10 @@ export default function AndroidPosRegister({
                       onClick={() => {
                         if (cart.length > 0) {
                           if (!selectedCustomer || selectedCustomer.trim() === '') {
-                            alert('⚠️ PROSES BAYAR GAGAL:\n\nMohon isi Nama Pelanggan terlebih dahulu sebelum melanjutkan pembayaran.');
-                            setShowCustomerSearchModal(true);
-                            return;
+                            setSelectedCustomer('Pelanggan Umum');
                           }
                           if (!orderType || (orderType !== 'Dine In' && orderType !== 'Take Away')) {
-                            alert('⚠️ PROSES BAYAR GAGAL:\n\nMohon pilih Jenis Transaksi (Dine In atau Take Away) terlebih dahulu.');
-                            return;
+                            setOrderType('Dine In');
                           }
                           setSelectedPaymentMethod('Cash');
                           setTenderedCash('');
