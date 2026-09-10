@@ -2850,9 +2850,22 @@ export default function AndroidPosRegister({
   //   3. Gagal Hardware   → toast merah + printerOfflineModal dengan opsi retry/PDF/setting
   const printTextToBluetooth = useCallback(async (textContent, ticketType = 'receipt') => {
     showPrintStatus('printing', 'Mengirim data ke printer Bluetooth...');
+    const isCap = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.();
+    let effectiveMac = printerMac;
+    if (isCap && (!effectiveMac || effectiveMac === 'SYSTEM_PDF_PRINT')) {
+      const foundBt = pairedDevices.find(d => d.address && d.address !== 'SYSTEM_PDF_PRINT' && d.address !== 'BT_THERMAL_AUTO');
+      if (foundBt) {
+        effectiveMac = foundBt.address;
+        setPrinterMac(foundBt.address);
+        try { localStorage.setItem('MRIS_PRINTER_MAC', foundBt.address); } catch (e) {}
+      } else {
+        effectiveMac = 'BT_THERMAL_AUTO';
+      }
+    }
+
     try {
       await printToBluetoothPrinter(
-        printerMac,
+        effectiveMac,
         textContent,
         printerPaperWidth,
         // onSuccess — bisa dari hardware ATAU dari fallback PDF
@@ -2899,7 +2912,7 @@ export default function AndroidPosRegister({
       console.error('[BTPrinter] printTextToBluetooth unexpected error:', err);
       showPrintStatus('error', 'Error tidak terduga: ' + msg);
     }
-  }, [printerMac, printerPaperWidth, showPrintStatus]);
+  }, [printerMac, pairedDevices, printerPaperWidth, showPrintStatus]);
 
   // Test print ke hardware printer — kirim struk tes sederhana via Bluetooth
   const handleExecuteTestPrint = useCallback(async () => {
@@ -2964,14 +2977,25 @@ export default function AndroidPosRegister({
   }, [currentOutlet, printerPaperWidth, printTextToBluetooth, masterData]);
 
   // CETAK ULANG RIWAYAT TRANSAKSI ke hardware Bluetooth printer
-  const handlePrintSingleReceipt = useCallback(async (tx) => {
+  const handlePrintSingleReceipt = useCallback(async (tx, ticketType = 'receipt') => {
     if (!tx) return;
-    const outletName = currentOutlet?.name || 'POS KASIR BAROKAH';
-    const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
-    const headerFooter = masterData?.printerSettings?.headerFooter;
-    const text = buildReceiptText(tx, outletName, 'receipt', printerPaperWidth, fmtRp, headerFooter);
-    await printTextToBluetooth(text);
-  }, [currentOutlet, printerPaperWidth, printTextToBluetooth, masterData]);
+    try {
+      showPrintStatus('printing', 'Menyiapkan cetak ulang struk...');
+      let items = tx.items || tx.orderItems || tx.cart || [];
+      if (typeof items === 'string') {
+        try { items = JSON.parse(items); } catch (e) { items = []; }
+      }
+      const safeTx = { ...tx, items, is_reprint: true };
+      const outletName = currentOutlet?.name || 'POS KASIR BAROKAH';
+      const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
+      const headerFooter = masterData?.printerSettings?.headerFooter;
+      const text = buildReceiptText(safeTx, outletName, ticketType, printerPaperWidth, fmtRp, headerFooter);
+      await printTextToBluetooth(text, ticketType);
+    } catch (err) {
+      console.error('[POS] handlePrintSingleReceipt error:', err);
+      showPrintStatus('error', 'Gagal cetak ulang struk: ' + (err?.message || String(err)));
+    }
+  }, [currentOutlet, printerPaperWidth, printTextToBluetooth, masterData, showPrintStatus]);
 
   // ─── HELPER KALKULASI STOK MASUK & TRANSFER STOK OPNAME ─────────────────
   const getStokMasukFromLaporanHarian = useCallback((ingName, targetDate, targetOutletId) => {
@@ -6452,6 +6476,31 @@ export default function AndroidPosRegister({
                         <div style={{ fontSize: '1.05rem', fontWeight: '900', color: '#10b981' }}>{formatRupiah(tx.amount)}</div>
                         <div style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700' }}>{(tx.items || []).length} Item Menu</div>
                       </div>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePrintSingleReceipt(tx, 'receipt');
+                        }}
+                        style={{ 
+                          padding: '8px 14px', 
+                          borderRadius: '10px', 
+                          border: 'none', 
+                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+                          color: '#ffffff', 
+                          fontWeight: '800', 
+                          fontSize: '0.78rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          boxShadow: '0 2px 8px rgba(16,185,129,0.25)'
+                        }}
+                        title="Cetak ulang struk langsung ke printer thermal"
+                      >
+                        <Printer size={14} />
+                        Cetak Ulang
+                      </button>
                       <button 
                         type="button"
                         onClick={() => setSelectedTxDetail(tx)} 
@@ -10907,12 +10956,12 @@ export default function AndroidPosRegister({
 
             {/* PRINTER STATUS BANNER — modal cetak ulang riwayat transaksi */}
             {renderPrinterStatusBanner()}
-            <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
               <button 
                 type="button"
                 onClick={() => setSelectedTxDetail(null)} 
                 style={{ 
-                  flex: 1, 
+                  flex: 0.8, 
                   padding: '11px', 
                   borderRadius: '10px', 
                   border: `1px solid ${T.borderCard}`, 
@@ -10927,9 +10976,32 @@ export default function AndroidPosRegister({
               </button>
               <button 
                 type="button"
-                onClick={() => handlePrintSingleReceipt(selectedTxDetail)} 
+                onClick={() => handlePrintSingleReceipt(selectedTxDetail, 'kitchen')} 
+                title="Cetak ulang tiket dapur untuk koki / staf dapur"
                 style={{ 
-                  flex: 1.4, 
+                  flex: 1, 
+                  padding: '11px 8px', 
+                  borderRadius: '10px', 
+                  border: `1px solid ${isCalmSage ? '#f59e0b' : '#d97706'}`, 
+                  background: isCalmSage ? '#fffbeb' : '#451a03', 
+                  color: isCalmSage ? '#b45309' : '#fef3c7', 
+                  fontWeight: '800', 
+                  fontSize: '0.78rem', 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px'
+                }}
+              >
+                <ChefHat size={15} />
+                <span>Tiket Dapur</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => handlePrintSingleReceipt(selectedTxDetail, 'receipt')} 
+                style={{ 
+                  flex: 1.5, 
                   padding: '11px', 
                   borderRadius: '10px', 
                   border: 'none', 

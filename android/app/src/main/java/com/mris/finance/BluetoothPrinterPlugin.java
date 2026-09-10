@@ -113,6 +113,38 @@ public class BluetoothPrinterPlugin extends Plugin {
     }
 
     /**
+     * Helper untuk menyelesaikan BluetoothDevice dari string MAC atau preset AUTO.
+     */
+    private BluetoothDevice resolveBluetoothDevice(BluetoothAdapter adapter, String mac) {
+        if (adapter == null || mac == null || mac.trim().isEmpty()) return null;
+        String cleanMac = mac.trim();
+        if ("BT_THERMAL_AUTO".equalsIgnoreCase(cleanMac) || "AUTO".equalsIgnoreCase(cleanMac)) {
+            try {
+                Set<BluetoothDevice> paired = adapter.getBondedDevices();
+                if (paired != null && !paired.isEmpty()) {
+                    for (BluetoothDevice d : paired) {
+                        String dName = (d.getName() != null ? d.getName().toLowerCase() : "");
+                        if (dName.contains("print") || dName.contains("pos") || dName.contains("rpp") ||
+                            dName.contains("thermal") || dName.contains("mpt") || dName.contains("58") || dName.contains("80")) {
+                            return d;
+                        }
+                    }
+                    return paired.iterator().next();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error resolving auto Bluetooth device: " + e.getMessage());
+            }
+            return null;
+        }
+        try {
+            return adapter.getRemoteDevice(cleanMac);
+        } catch (Exception e) {
+            Log.e(TAG, "Invalid Bluetooth MAC address: " + cleanMac, e);
+            return null;
+        }
+    }
+
+    /**
      * Memeriksa ketersediaan saklar daya & respon hardware printer secara realtime.
      * Params: { mac: string }
      */
@@ -137,18 +169,27 @@ public class BluetoothPrinterPlugin extends Plugin {
         new Thread(() -> {
             BluetoothSocket socket = null;
             try {
-                BluetoothDevice device = adapter.getRemoteDevice(mac);
+                BluetoothDevice device = resolveBluetoothDevice(adapter, mac);
+                if (device == null) {
+                    JSObject res = new JSObject();
+                    res.put("address", mac);
+                    res.put("isLive", false);
+                    res.put("reason", "Printer Bluetooth tidak ditemukan di daftar paired.");
+                    call.resolve(res);
+                    return;
+                }
+
                 try { adapter.cancelDiscovery(); } catch (Throwable ignored) {}
                 socket = connectToDeviceSocket(device);
                 
-                String devName = mac;
+                String devName = device.getAddress();
                 try {
                     String dName = device.getName();
                     if (dName != null && !dName.trim().isEmpty()) devName = dName;
                 } catch (Throwable ignored) {}
 
                 JSObject res = new JSObject();
-                res.put("address", mac);
+                res.put("address", device.getAddress());
                 res.put("name", devName);
                 res.put("isLive", true);
                 res.put("reason", "Printer Hidup & Merespon");
@@ -270,11 +311,16 @@ public class BluetoothPrinterPlugin extends Plugin {
         new Thread(() -> {
             BluetoothSocket socket = null;
             try {
-                BluetoothDevice device = adapter.getRemoteDevice(mac);
+                BluetoothDevice device = resolveBluetoothDevice(adapter, mac);
+                if (device == null) {
+                    call.reject("DEVICE_NOT_FOUND", "Printer Bluetooth tidak ditemukan di daftar paired.");
+                    return;
+                }
+
                 try { adapter.cancelDiscovery(); } catch (Throwable ignored) {}
                 socket = connectToDeviceSocket(device);
                 
-                String devName = mac;
+                String devName = device.getAddress();
                 try {
                     String dName = device.getName();
                     if (dName != null && !dName.trim().isEmpty()) devName = dName;
@@ -347,7 +393,12 @@ public class BluetoothPrinterPlugin extends Plugin {
             OutputStream outputStream = null;
 
             try {
-                BluetoothDevice device = adapter.getRemoteDevice(finalMac);
+                BluetoothDevice device = resolveBluetoothDevice(adapter, finalMac);
+                if (device == null) {
+                    call.reject("DEVICE_NOT_FOUND", "Printer Bluetooth tidak ditemukan di daftar paired.");
+                    return;
+                }
+
                 try { adapter.cancelDiscovery(); } catch (Throwable ignored) {}
 
                 // Multi-method socket connection (Secure -> Insecure -> Reflection Channel 1)
@@ -363,6 +414,7 @@ public class BluetoothPrinterPlugin extends Plugin {
 
                 JSObject result = new JSObject();
                 result.put("success", true);
+                result.put("isHardware", true);
                 result.put("message", "Cetak berhasil.");
                 call.resolve(result);
 
@@ -446,21 +498,31 @@ public class BluetoothPrinterPlugin extends Plugin {
             boolean isCenter = false;
             boolean isDoubleSize = false;
 
-            // Parse alignment
-            if (line.startsWith("[C]")) {
-                isCenter = true;
-                line = line.substring(3);
-            } else if (line.startsWith("[L]")) {
-                line = line.substring(3);
-            }
+            // Strip closing BBCode tags so they never appear on physical receipt
+            line = line.replace("[/B]", "").replace("[/C]", "").replace("[/2]", "").replace("[/L]", "").replace("[/R]", "");
 
-            // Parse style
-            if (line.startsWith("[B]")) {
-                isBold = true;
-                line = line.substring(3);
-            } else if (line.startsWith("[2]")) {
-                isDoubleSize = true;
-                line = line.substring(3);
+            // Parse alignment and style prefixes iteratively in any order (e.g. [C][B] or [B][C])
+            boolean tagFound = true;
+            while (tagFound && line.length() >= 3) {
+                tagFound = false;
+                if (line.startsWith("[C]")) {
+                    isCenter = true;
+                    line = line.substring(3);
+                    tagFound = true;
+                } else if (line.startsWith("[L]")) {
+                    isCenter = false;
+                    line = line.substring(3);
+                    tagFound = true;
+                }
+                if (line.startsWith("[B]")) {
+                    isBold = true;
+                    line = line.substring(3);
+                    tagFound = true;
+                } else if (line.startsWith("[2]")) {
+                    isDoubleSize = true;
+                    line = line.substring(3);
+                    tagFound = true;
+                }
             }
 
             // Special lines

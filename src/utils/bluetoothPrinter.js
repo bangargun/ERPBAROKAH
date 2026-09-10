@@ -112,6 +112,18 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
   const orderTypeLabel = isTakeAway ? 'TAKE AWAY / BUNGKUS' : 'DINE IN';
   const rawCust = (tx.customer_name || tx.customerName || tx.customer || tx.nama_pelanggan || tx.pelanggan || '').trim();
   const custName = (!rawCust || rawCust.toLowerCase() === 'pelanggan umum') ? 'Pelanggan Utama' : rawCust;
+  const tableDisplay = isTakeAway ? 'TAKE AWAY' : (tx.table_number || tx.table || 'Meja 01');
+
+  // Normalisasi list items agar aman dari null, undefined, atau string JSON
+  let txItems = tx.items || tx.orderItems || tx.cart || [];
+  if (typeof txItems === 'string') {
+    try {
+      txItems = JSON.parse(txItems);
+    } catch (e) {
+      txItems = [];
+    }
+  }
+  if (!Array.isArray(txItems)) txItems = [];
 
   const appendInformationalReceiptNotice = (targetLines) => {
     targetLines.push('[DIV]');
@@ -128,6 +140,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     // ===== STRUK DAPUR (KITCHEN TICKET - TANPA HARGA) =====
     lines.push('[C][B]' + outlet);
     lines.push('[C]STRUK DAPUR - KITCHEN TICKET');
+    if (tx.is_reprint) lines.push('[C][B]*** SALINAN / CETAK ULANG ***');
     lines.push('[DIV]');
     lines.push(rowLine('No. Order:', tx.id || tx.receipt_no || '-'));
     lines.push(rowLine('Tipe Order:', orderTypeLabel));
@@ -140,8 +153,9 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push('[DIV]');
     lines.push('[B]QTY  NAMA PESANAN (DAPUR/KOKI)');
     lines.push('[DIV]');
-    (tx.items || []).forEach(it => {
-      lines.push(`[B]${it.qty || 1}x  ${(it.name || it.item_name || '').toUpperCase()}`);
+    txItems.forEach(it => {
+      const name = (it.name || it.item_name || it.product_name || 'Menu').toUpperCase();
+      lines.push(`[B]${it.qty || 1}x  ${name}`);
       if (it.notes) lines.push(`   * Catatan: ${it.notes}`);
     });
     lines.push('[DIVD]');
@@ -152,6 +166,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     // ===== STRUK BAR (BAR TICKET - TANPA HARGA) =====
     lines.push('[C][B]' + outlet);
     lines.push('[C]STRUK BAR - BAR TICKET');
+    if (tx.is_reprint) lines.push('[C][B]*** SALINAN / CETAK ULANG ***');
     lines.push('[DIV]');
     lines.push(rowLine('No. Order:', tx.id || tx.receipt_no || '-'));
     lines.push(rowLine('Tipe Order:', orderTypeLabel));
@@ -164,8 +179,9 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push('[DIV]');
     lines.push('[B]QTY  NAMA MINUMAN (BAR)');
     lines.push('[DIV]');
-    (tx.items || []).forEach(it => {
-      lines.push(`[B]${it.qty || 1}x  ${(it.name || it.item_name || '').toUpperCase()}`);
+    txItems.forEach(it => {
+      const name = (it.name || it.item_name || it.product_name || 'Minuman').toUpperCase();
+      lines.push(`[B]${it.qty || 1}x  ${name}`);
       if (it.notes) lines.push(`   * Catatan: ${it.notes}`);
     });
     lines.push('[DIVD]');
@@ -176,6 +192,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     // ===== CONTOH TAGIHAN SEMENTARA / BILL MEJA (DENGAN RINCIAN HARGA) =====
     lines.push('[C][B]' + outlet);
     lines.push('[C]CONTOH TAGIHAN SEMENTARA');
+    if (tx.is_reprint) lines.push('[C][B]*** SALINAN / CETAK ULANG ***');
     lines.push('[DIV]');
     lines.push(rowLine('No. Bill:', tx.id || tx.receipt_no || '-'));
     lines.push(rowLine('Tanggal:', tx.date || ''));
@@ -189,9 +206,12 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push('[DIV]');
     lines.push(rowLine('ITEM', 'SUBTOTAL'));
     lines.push('[DIV]');
-    (tx.items || []).forEach(it => {
-      const sub = (it.price || it.price_unit || 0) * (it.qty || 1);
-      lines.push(rowLine(`${it.qty || 1}x ${(it.name || it.item_name || '').toUpperCase()}`, fmt(sub)));
+    txItems.forEach(it => {
+      const name = (it.name || it.item_name || it.product_name || 'Menu').toUpperCase();
+      const qty = Number(it.qty || it.quantity || 1);
+      const unitPrice = Number(it.price || it.price_unit || it.unit_price || (it.amount && qty ? it.amount / qty : 0));
+      const sub = Number(it.amount || it.subtotal || (unitPrice * qty));
+      lines.push(rowLine(`${qty}x ${name}`, fmt(sub)));
       if (it.notes) lines.push(`   * Catatan: ${it.notes}`);
     });
     lines.push('[DIVD]');
@@ -203,6 +223,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     // ===== STRUK MEJA / ORDER CHECKER / TABLE COPY (TANPA HARGA) =====
     lines.push('[C][B]' + outlet);
     lines.push('[C]STRUK MEJA - TABLE CHECKER');
+    if (tx.is_reprint) lines.push('[C][B]*** SALINAN / CETAK ULANG ***');
     lines.push('[DIV]');
     lines.push(rowLine('No. Order:', tx.id || tx.receipt_no || '-'));
     lines.push(rowLine('Tipe Order:', orderTypeLabel));
@@ -215,8 +236,9 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push('[DIV]');
     lines.push('[B]QTY  NAMA PESANAN (TABLE)');
     lines.push('[DIV]');
-    (tx.items || []).forEach(it => {
-      lines.push(`[B]${it.qty || 1}x  ${(it.name || it.item_name || '').toUpperCase()}`);
+    txItems.forEach(it => {
+      const name = (it.name || it.item_name || it.product_name || 'Menu').toUpperCase();
+      lines.push(`[B]${it.qty || 1}x  ${name}`);
       if (it.notes) lines.push(`   * Catatan: ${it.notes}`);
     });
     lines.push('[DIVD]');
@@ -227,6 +249,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     // ===== STRUK COPY KASIR SAAT SIMPAN PESANAN GANTUNG (DENGAN RINCIAN HARGA) =====
     lines.push('[C][B]' + outlet);
     lines.push('[C]STRUK COPY KASIR (BELUM DIBAYAR)');
+    if (tx.is_reprint) lines.push('[C][B]*** SALINAN / CETAK ULANG ***');
     lines.push('[DIV]');
     lines.push(rowLine('No. Order:', tx.id || tx.receipt_no || '-'));
     lines.push(rowLine('Tanggal:', tx.date || ''));
@@ -240,9 +263,12 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push('[DIV]');
     lines.push(rowLine('ITEM', 'SUBTOTAL'));
     lines.push('[DIV]');
-    (tx.items || []).forEach(it => {
-      const sub = (it.price || it.price_unit || 0) * (it.qty || 1);
-      lines.push(rowLine(`${it.qty || 1}x ${(it.name || it.item_name || '').toUpperCase()}`, fmt(sub)));
+    txItems.forEach(it => {
+      const name = (it.name || it.item_name || it.product_name || 'Menu').toUpperCase();
+      const qty = Number(it.qty || it.quantity || 1);
+      const unitPrice = Number(it.price || it.price_unit || it.unit_price || (it.amount && qty ? it.amount / qty : 0));
+      const sub = Number(it.amount || it.subtotal || (unitPrice * qty));
+      lines.push(rowLine(`${qty}x ${name}`, fmt(sub)));
       if (it.notes) lines.push(`   * Catatan: ${it.notes}`);
     });
     lines.push('[DIVD]');
@@ -262,22 +288,28 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     if (address) lines.push('[C]' + address);
     if (phone) lines.push('[C]Telp: ' + phone);
     lines.push('[C]NOTA PEMBAYARAN');
+    if (ticketType === 'reprint' || tx.is_reprint) {
+      lines.push('[C][B]*** SALINAN / CETAK ULANG ***');
+    }
     lines.push('[DIV]');
-    lines.push(rowLine('No. Struk:', tx.id || tx.receipt_no || '-'));
-    lines.push(rowLine('Tanggal:', tx.date || ''));
+    lines.push(rowLine('No. Struk:', tx.id || tx.receipt_no || tx.receiptNo || '-'));
+    lines.push(rowLine('Tanggal:', tx.date || new Date().toISOString().split('T')[0]));
     lines.push(rowLine('Waktu:', tx.time || ''));
     lines.push(rowLine('Tipe Order:', orderTypeLabel));
     if (!isTakeAway) {
       lines.push(rowLine('Meja:', tableDisplay));
     }
     lines.push(rowLine('Pelanggan:', custName));
-    lines.push(rowLine('Kasir:', tx.cashier || '-'));
+    lines.push(rowLine('Kasir:', tx.cashier || tx.cashier_name || tx.kasir || '-'));
     lines.push('[DIV]');
     lines.push(rowLine('ITEM', 'SUBTOTAL'));
     lines.push('[DIV]');
-    (tx.items || []).forEach(it => {
-      const sub = (it.price || it.price_unit || 0) * (it.qty || 1);
-      lines.push(rowLine(`${it.qty || 1}x ${(it.name || it.item_name || '').toUpperCase()}`, fmt(sub)));
+    txItems.forEach(it => {
+      const name = (it.name || it.item_name || it.product_name || 'Menu').toUpperCase();
+      const qty = Number(it.qty || it.quantity || 1);
+      const unitPrice = Number(it.price || it.price_unit || it.unit_price || (it.amount && qty ? it.amount / qty : 0));
+      const sub = Number(it.amount || it.subtotal || (unitPrice * qty));
+      lines.push(rowLine(`${qty}x ${name}`, fmt(sub)));
       if (it.notes) lines.push(`   * Catatan: ${it.notes}`);
     });
     lines.push('[DIVD]');
@@ -319,15 +351,6 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
 };
 
 /**
- * Cetak struk ke printer Bluetooth (native) atau fallback ke browser print.
- *
- * @param {string} mac - MAC address printer
- * @param {string} textContent - Teks terformat (output buildReceiptText)
- * @param {string} paperWidth - '58' | '80'
- * @param {Function} onSuccess - Callback sukses
- * @param {Function} onError - Callback error
- */
-/**
  * Cetak struk ke printer Bluetooth (native) atau fallback otomatis ke PDF Print (system print).
  *
  * @param {string} mac - MAC address printer
@@ -337,7 +360,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
  * @param {Function} onError - Callback error
  */
 export const printToBluetoothPrinter = async (mac, textContent, paperWidth = '58', onSuccess, onError) => {
-  if (isCapacitor() && mac) {
+  if (isCapacitor() && mac && mac !== 'SYSTEM_PDF_PRINT') {
     // Mode Capacitor (Android) — kirim ke native plugin Bluetooth
     try {
       const result = await BluetoothPrinter.printText({
@@ -345,14 +368,19 @@ export const printToBluetoothPrinter = async (mac, textContent, paperWidth = '58
         text: textContent,
         paperWidth: String(paperWidth)
       });
-      if (onSuccess) onSuccess(result);
-      return result;
+      const resWithHw = { ...(result || {}), isHardware: true, success: true };
+      if (onSuccess) onSuccess(resWithHw);
+      return resWithHw;
     } catch (err) {
       console.error('[BTPrinter] Native printText error:', err);
-      console.warn('[BTPrinter] Bluetooth printer error / tidak merespon, otomatis mengalihkan ke Cetak PDF...');
-      _browserPrintFallback(textContent, paperWidth);
-      if (onSuccess) onSuccess({ success: true, fallbackPdf: true, errorMsg: err?.message });
-      return { success: true, fallbackPdf: true, errorMsg: err?.message };
+      if (onError) {
+        onError(err);
+      } else {
+        console.warn('[BTPrinter] Bluetooth printer error / tidak merespon, otomatis mengalihkan ke Cetak PDF...');
+        _browserPrintFallback(textContent, paperWidth);
+        if (onSuccess) onSuccess({ success: true, fallbackPdf: true, errorMsg: err?.message });
+      }
+      return { success: false, error: err?.message || String(err) };
     }
   } else {
     // Mode Browser / Printer Tidak Ada (MAC Kosong) — langsung alihkan ke PDF Print!
@@ -401,10 +429,15 @@ export const testPrint = async (mac, outletName = 'POS KASIR BAROKAH', paperWidt
  */
 export const _browserPrintFallback = (textContent, paperWidth = '58') => {
   const w = paperWidth === '80' ? '76mm' : '54mm';
-  
+  const divLine = '-'.repeat(paperWidth === '80' ? 48 : 32);
+  const divdLine = '='.repeat(paperWidth === '80' ? 48 : 32);
+
   // Clean ESC/POS tags for clean PDF layout
   const cleanText = (textContent || '')
-    .replace(/\[C\]|\[L\]|\[R\]|\[B\]|\[2\]|\[DIV\]|\[DIVD\]|\[CUT\]/g, '')
+    .replace(/\[DIV\]/g, divLine)
+    .replace(/\[DIVD\]/g, divdLine)
+    .replace(/\[C\]|\[L\]|\[R\]|\[B\]|\[2\]|\[CUT\]/g, '')
+    .replace(/\[\/[A-Z0-9]+\]/g, '')
     .replace(/undefined/g, '');
 
   const html = `<!DOCTYPE html>
