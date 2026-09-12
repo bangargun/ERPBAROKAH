@@ -29,8 +29,10 @@ import {
   SlidersHorizontal,
   ChevronRight,
   Utensils,
-  Palette
+  Palette,
+  Download
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import MenuAnalyticsDetailModal from './MenuAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
@@ -349,6 +351,77 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     const start = (currentPage - 1) * pageSize;
     return filteredProducts.slice(start, start + pageSize);
   }, [filteredProducts, currentPage, pageSize]);
+
+  // -------------------------------------------------------------
+  // EXPORT EXCEL HANDLER
+  // -------------------------------------------------------------
+  const handleExportExcel = () => {
+    const list = filteredProducts.length > 0 ? filteredProducts : (masterData?.products || []);
+    if (!list || list.length === 0) {
+      alert('Tidak ada data menu untuk diekspor.');
+      return;
+    }
+
+    const headers = [
+      'SKU / Kode Produk',
+      'Nama Produk',
+      'Nama Kategori',
+      'Harga Jual (IDR)',
+      'HPP / Modal (IDR)',
+      'Satuan',
+      'Stok Awal',
+      'Stok Minimal',
+      'Status'
+    ];
+
+    const rows = list.map((p, idx) => {
+      const sku = p.sku || p.code || `PRD-${String(idx + 1).padStart(3, '0')}`;
+      const name = p.name || '';
+      const category = p.category_name || p.category || 'Umum';
+      const price = Number(p.price || 0);
+      const calculatedHpp = calculateProductHpp(p.compositions || []);
+      const cost = Number(calculatedHpp > 0 ? calculatedHpp : (p.cost || p.hpp || 0));
+      const unit = p.unit || p.satuan || 'Porsi';
+      const stock = Number(p.stock !== undefined ? p.stock : (p.stok !== undefined ? p.stok : 100));
+      const minStock = Number(p.min_stock !== undefined ? p.min_stock : 10);
+      const status = p.status || (p.is_active === false ? 'Nonaktif' : 'Aktif');
+
+      return [
+        sku,
+        name,
+        category,
+        price,
+        cost,
+        unit,
+        stock,
+        minStock,
+        status
+      ];
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+    // Set auto column widths
+    ws['!cols'] = [
+      { wch: 18 }, // SKU / Kode Produk
+      { wch: 36 }, // Nama Produk
+      { wch: 22 }, // Nama Kategori
+      { wch: 20 }, // Harga Jual (IDR)
+      { wch: 20 }, // HPP / Modal (IDR)
+      { wch: 14 }, // Satuan
+      { wch: 14 }, // Stok Awal
+      { wch: 14 }, // Stok Minimal
+      { wch: 12 }  // Status
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Master Menu Resto');
+
+    const today = new Date().toISOString().substring(0, 10);
+    const fileName = `Data_Master_Menu_Resto_MRIS_${today}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
+  };
 
   // -------------------------------------------------------------
   // MODAL OPEN HANDLERS
@@ -958,6 +1031,17 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               <span>Cek {duplicateGroups.length} Menu Duplikat</span>
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="btn-secondary"
+            style={{ padding: '8px 14px', fontSize: '0.76rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}
+            title="Ekspor Seluruh Data Master Menu Resto ke file Excel (.xlsx)"
+          >
+            <Download size={15} />
+            <span>Ekspor Excel</span>
+          </button>
 
           <button
             type="button"
