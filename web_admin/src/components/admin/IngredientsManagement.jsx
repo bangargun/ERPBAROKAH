@@ -3,8 +3,9 @@ import {
   ShoppingBasket, Plus, Search, Trash2, Edit3, X, CheckCircle2,
   AlertTriangle, Eye, ArrowLeft, ShieldCheck, FileSpreadsheet,
   Layers, LayoutGrid, Sparkles, TrendingUp, DollarSign, Utensils,
-  Scale, AlertCircle
+  Scale, AlertCircle, Download
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import IngredientAnalyticsDetailModal from './IngredientAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
@@ -223,6 +224,76 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
   const paginatedIngredients = useMemo(() => {
     return filteredIngredients.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   }, [filteredIngredients, currentPage, pageSize]);
+
+  // -------------------------------------------------------------
+  // EXPORT EXCEL HANDLER
+  // -------------------------------------------------------------
+  const handleExportExcel = () => {
+    const list = filteredIngredients.length > 0 ? filteredIngredients : (masterData?.ingredients || []);
+    if (!list || list.length === 0) {
+      alert('Tidak ada data bahan baku untuk diekspor.');
+      return;
+    }
+
+    const headers = [
+      'Kode Bahan',
+      'Nama Bahan Baku',
+      'Kategori Bahan',
+      'Satuan (Unit)',
+      'Harga Beli per Satuan (IDR)',
+      'Stok Awal',
+      'Stok Minimal',
+      'Supplier',
+      'Status'
+    ];
+
+    const rows = list.map((item, idx) => {
+      const code = item.code || item.sku || `BHN-${String(idx + 1).padStart(3, '0')}`;
+      const name = item.name || item.item_name || '';
+      const category = item.category || item.category_name || 'Umum';
+      const unit = item.unit || item.satuan || 'Kg';
+      const buyPrice = Number(item.avg_buy_price ?? item.price ?? item.buy_price ?? 0);
+      const stock = Number(item.stock ?? item.stok ?? 0);
+      const minStock = Number(item.min_stock ?? 5);
+      const supplier = item.supplier || item.vendor_name || '-';
+      const status = item.status || (item.is_active === false ? 'Nonaktif' : 'Aktif');
+
+      return [
+        code,
+        name,
+        category,
+        unit,
+        buyPrice,
+        stock,
+        minStock,
+        supplier,
+        status
+      ];
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+    // Set styling and auto column widths
+    ws['!cols'] = [
+      { wch: 16 }, // Kode Bahan
+      { wch: 36 }, // Nama Bahan Baku
+      { wch: 22 }, // Kategori Bahan
+      { wch: 14 }, // Satuan (Unit)
+      { wch: 26 }, // Harga Beli per Satuan (IDR)
+      { wch: 14 }, // Stok Awal
+      { wch: 14 }, // Stok Minimal
+      { wch: 26 }, // Supplier
+      { wch: 12 }  // Status
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Master Bahan Baku');
+
+    const today = new Date().toISOString().substring(0, 10);
+    const fileName = `Data_Master_Bahan_Baku_MRIS_${today}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
+  };
 
   // -------------------------------------------------------------
   // FORM HANDLERS (ADD & EDIT)
@@ -533,6 +604,17 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
               <span>Kelola Kategori Bahan</span>
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="btn-secondary"
+            style={{ padding: '8px 14px', fontSize: '0.76rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}
+            title="Ekspor Data Master Bahan Baku ke file Excel (.xlsx)"
+          >
+            <Download size={15} />
+            <span>Ekspor Excel</span>
+          </button>
 
           <button
             type="button"
