@@ -2060,6 +2060,18 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
     const extVal = existing[key];
 
     if (Array.isArray(incVal)) {
+      // ─── PROTEKSI TOMBSTONE: Semua array deleted* SELALU di-union merge! ────────
+      // Mencegah data terhapus hidup kembali jika client mengirim payload master-data lama
+      if (key.startsWith('deleted') || key.startsWith('deleted_')) {
+        const extList = Array.isArray(extVal) ? extVal : [];
+        const incList = Array.isArray(incVal) ? incVal : [];
+        result[key] = Array.from(new Set([
+          ...extList.map(x => String(x).trim()),
+          ...incList.map(x => String(x).trim())
+        ].filter(Boolean)));
+        return;
+      }
+
       // Proteksi Union Merge khusus untuk user accounts: gabungkan data incoming & existing berdasarkan ID/Username, kecualikan yang terhapus
       if (key === 'webAdminAccounts' || key === 'mobileAccounts') {
         const deletedSet = new Set([
@@ -2947,6 +2959,17 @@ app.post('/api/pos/transaction', async (req, res) => {
     // Reject legacy test dates or permanently deleted transactions
     if (txDate < '2026-08-13') {
       return res.status(400).json({ success: false, error: 'Transaksi uji coba sebelum 13 Agustus 2026 telah dibersihkan' });
+    }
+
+    // Tolak transaksi yang sudah dihapus permanen (Tombstone check agar tidak terjadi resync loop)
+    const existingMd = (await getMasterDataFromMySQL()) || defaultMasterData;
+    const deletedSalesSet = new Set([
+      ...(existingMd.deletedSalesIds || []),
+      ...(existingMd.deletedLogisticsIds || []),
+      ...(existingMd.deletedReportIds || [])
+    ].map(x => String(x).toLowerCase().trim()));
+    if (deletedSalesSet.has(txId.toLowerCase().trim()) || (txRcpt && deletedSalesSet.has(txRcpt.toLowerCase().trim()))) {
+      return res.status(400).json({ success: false, isDeleted: true, error: 'Transaksi ini telah dihapus permanen di Web Admin' });
     }
     const formatTimeHHMMSS = (t) => {
       if (t && typeof t === 'string') {
