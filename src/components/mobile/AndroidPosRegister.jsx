@@ -1078,17 +1078,23 @@ export default function AndroidPosRegister({
         return;
       }
 
-      // Bersihkan transaksi offline yang ternyata sudah ada di masterData server
+      // Bersihkan transaksi offline yang ternyata sudah ada di masterData server atau sudah dihapus permanen
       const allKnown = [
         ...(masterData?.salesTransactions || []),
         ...(masterData?.transactions || [])
       ];
       const knownIds = new Set(allKnown.map(t => String(t.id || t.receipt_no || t.receiptNo || '')));
+      const deletedIds = new Set([
+        ...(masterData?.deletedSalesIds || []).map(x => String(x)),
+        ...(masterData?.deletedLogisticsIds || []).map(x => String(x))
+      ]);
 
-      // Hapus yang sudah tercatat di database dari antrean lokal
+      // Hapus yang sudah tercatat di database atau sudah dihapus permanen dari antrean lokal
       const unconfirmedQueue = queue.filter(tx => {
         if (!tx) return false;
         const txKey = String(tx.id || tx.receipt_no || tx.receiptNo || '');
+        // Cegah resync transaksi yang sudah dihapus permanen di Web Admin
+        if (txKey && deletedIds.has(txKey)) return false;
         if (txKey && knownIds.has(txKey)) return false;
 
         // Cek juga signature: outlet_id + tanggal + customer + nominal persis

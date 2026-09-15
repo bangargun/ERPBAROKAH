@@ -3307,6 +3307,17 @@ app.post('/api/pos/transaction', transactionRateLimit, async (req, res) => {
     if (txDate < '2026-08-13') {
       return res.status(400).json({ success: false, error: 'Transaksi uji coba sebelum 13 Agustus 2026 telah dibersihkan' });
     }
+
+    // Tolak transaksi yang sudah dihapus permanen (Tombstone check agar tidak terjadi resync loop)
+    const existingMd = (await getMasterDataFromMySQL()) || defaultMasterData;
+    const deletedSalesSet = new Set([
+      ...(existingMd.deletedSalesIds || []).map(x => String(x)),
+      ...(existingMd.deletedLogisticsIds || []).map(x => String(x)),
+      ...(existingMd.deletedReportIds || []).map(x => String(x))
+    ]);
+    if (deletedSalesSet.has(txId) || (txRcpt && deletedSalesSet.has(txRcpt))) {
+      return res.status(400).json({ success: false, error: 'Transaksi ini telah dihapus permanen di Web Admin' });
+    }
     const formatTimeHHMMSS = (t) => {
       if (t && typeof t === 'string') {
         const cleanT = t.replace(/\./g, ':').trim();

@@ -242,6 +242,20 @@ export async function executePermanentDelete({
         return ref !== idStr && ref !== rcptStr;
       });
     }
+    // Bersihkan juga dari antrean outbox offline lokal agar tidak terkirim ulang
+    try {
+      const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+      if (qRaw) {
+        const q = JSON.parse(qRaw);
+        if (Array.isArray(q)) {
+          const cleanQ = q.filter(item => {
+            const itemKey = String(item.id || item.receipt_no || item.receiptNo || '');
+            return itemKey !== idStr && itemKey !== rcptStr;
+          });
+          localStorage.setItem('MRIS_POS_OFFLINE_TX_QUEUE', JSON.stringify(cleanQ));
+        }
+      }
+    } catch (e) {}
   } else if (['approvedFinanceDaily', 'manualEntryRecords', 'shiftClosings', 'closedShifts'].includes(key)) {
     appendTombstone('deletedReportIds', [idStr, rcptStr]);
     ['approvedFinanceDaily', 'manualEntryRecords', 'shiftClosings', 'closedShifts', 'dailyReports'].forEach(k => {
